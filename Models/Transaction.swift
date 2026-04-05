@@ -11,19 +11,22 @@ final class Transaction: Identifiable {
     private var amountRaw: String
 
     var category: Category?
+    var linkedGoal: Goal?
 
     init(
         id: UUID = .init(),
         amount: Money,
         type: TransactionType,
         category: Category? = nil,
+        linkedGoal: Goal? = nil,
         date: Date = .now,
         note: String = ""
     ) {
         self.id = id
-        amountRaw = "\(amount.amount)"
+        self.amountRaw = "\(amount.amount)"
         self.type = type
         self.category = category
+        self.linkedGoal = linkedGoal
         self.date = date
         self.note = note
     }
@@ -63,7 +66,7 @@ final class Transaction: Identifiable {
 extension Transaction {
     @MainActor
     static func predicate(from start: Date, to end: Date) -> Predicate<Transaction> {
-        #Predicate<Transaction> { $0.date >= start && $0.date <= end }
+        return #Predicate<Transaction> { $0.date >= start && $0.date <= end }
     }
 
     @MainActor

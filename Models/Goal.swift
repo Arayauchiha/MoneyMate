@@ -6,6 +6,7 @@ final class Goal: Identifiable {
     var id: UUID
     var title: String
     var type: GoalType
+    var startDate: Date = Date()
     var deadline: Date
     var isActive: Bool
     var currentStreak: Int
@@ -13,14 +14,17 @@ final class Goal: Identifiable {
     var lastEvaluatedDate: Date?
 
     private var targetAmountRaw: String
-
     private var blockedCategoryIDsRaw: String
+    
+    @Relationship(inverse: \Transaction.linkedGoal)
+    var transactions: [Transaction]?
 
     init(
         id: UUID = .init(),
         title: String,
         type: GoalType,
         targetAmount: Money = .zero,
+        startDate: Date = .now,
         deadline: Date,
         blockedCategories: [Category] = [],
         isActive: Bool = true
@@ -28,13 +32,14 @@ final class Goal: Identifiable {
         self.id = id
         self.title = title
         self.type = type
-        targetAmountRaw = "\(targetAmount.amount)"
+        self.targetAmountRaw = "\(targetAmount.amount)"
+        self.startDate = startDate
         self.deadline = deadline
         self.isActive = isActive
-        currentStreak = 0
-        longestStreak = 0
-        lastEvaluatedDate = nil
-        blockedCategoryIDsRaw = blockedCategories
+        self.currentStreak = 0
+        self.longestStreak = 0
+        self.lastEvaluatedDate = nil
+        self.blockedCategoryIDsRaw = blockedCategories
             .map(\.id.uuidString)
             .joined(separator: ",")
     }
@@ -69,7 +74,13 @@ final class Goal: Identifiable {
     }
 
     func progress(currentAmount: Money) -> Double {
-        guard !targetAmount.isZero else { return 0 }
+        guard !targetAmount.isZero else {
+            if type == .noSpend {
+                let totalDays = max(1, Calendar.current.dateComponents([.day], from: startDate, to: deadline).day ?? 1)
+                return min(Double(currentStreak) / Double(totalDays), 1)
+            }
+            return 0 
+        }
         let fraction = (currentAmount.amount / targetAmount.amount) as NSDecimalNumber
         return min(max(fraction.doubleValue, 0), 1)
     }
@@ -78,23 +89,33 @@ final class Goal: Identifiable {
     func progressLabel(currentAmount: Money) -> String {
         switch type {
         case .savings, .budgetCap:
-            "\(currentAmount.formatted) of \(targetAmount.formatted)"
+            "\(currentAmount.formattedCompact) / \(targetAmount.formattedCompact)"
         case .noSpend:
             "\(currentStreak)-day streak"
         }
     }
 
     func status(currentAmount: Money) -> GoalStatus {
-        if isExpired {
-            return progress(currentAmount: currentAmount) >= 1 ? .achieved : .failed
-        }
         let p = progress(currentAmount: currentAmount)
-        if p >= 1 { return .achieved }
+        let totalDays = max(1, Calendar.current.dateComponents([.day], from: startDate, to: deadline).day ?? 1)
+        let elapsedDays = max(0, Calendar.current.dateComponents([.day], from: startDate, to: .now).day ?? 0)
+        let elapsed = min(Double(elapsedDays) / Double(totalDays), 1.0)
 
-        let totalDays = max(1, Calendar.current.dateComponents(
-            [.day], from: .now.addingTimeInterval(-86400 * Double(daysRemaining)), to: deadline
-        ).day ?? 1)
-        let elapsed = Double(totalDays - daysRemaining) / Double(totalDays)
-        return (p < elapsed * 0.8) ? .atRisk : .onTrack
+        switch type {
+        case .savings:
+            if isExpired { return p >= 1 ? .achieved : .failed }
+            if p >= 1 { return .achieved }
+            return (p < elapsed * 0.8) ? .atRisk : .onTrack
+            
+        case .budgetCap:
+            if p >= 1 { return .failed }
+            if isExpired { return p < 1 ? .achieved : .failed }
+            return (p > elapsed * 1.1) ? .atRisk : .onTrack
+            
+        case .noSpend:
+            if isExpired { return currentStreak >= totalDays * 8/10 ? .achieved : .failed }
+            if currentStreak == 0 && elapsed > 0 { return .atRisk }
+            return .onTrack
+        }
     }
 }

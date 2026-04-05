@@ -4,6 +4,7 @@ import SwiftUI
 @Observable
 final class HomeViewModel {
     var totalBalance: Money = .zero
+    var expendableAmount: Money = .zero
     var totalIncome: Money = .zero
     var totalExpenses: Money = .zero
     var savingsRate: Double = 0
@@ -35,7 +36,10 @@ final class HomeViewModel {
 
             totalIncome = allTxns.filter { $0.type == .income }.reduce(.zero) { $0 + $1.money }
             totalExpenses = allTxns.filter { $0.type == .expense }.reduce(.zero) { $0 + $1.money }
+            let totalTransfers = allTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
+            
             totalBalance = totalIncome - totalExpenses
+            expendableAmount = totalBalance - totalTransfers
             savingsRate = totalIncome.isZero ? 0.0 : max(0.0, (totalIncome - totalExpenses).amount / totalIncome.amount).doubleValue
 
             recentTransactions = Array(allTxns.prefix(5))

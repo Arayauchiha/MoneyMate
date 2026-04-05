@@ -8,6 +8,7 @@ enum AddEditTransactionMode {
 
 struct AddEditTransactionView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
+    @Environment(GoalsViewModel.self) private var goalsViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
@@ -21,6 +22,7 @@ struct AddEditTransactionView: View {
     @State private var date: Date = .now
     @State private var note: String = ""
     @State private var customCategoryName: String = ""
+    @State private var selectedGoal: Goal? = nil
 
     private var isEditing: Bool {
         if case .edit = mode { return true }
@@ -76,10 +78,22 @@ struct AddEditTransactionView: View {
                     }
                 }
                 
+                if type == .transfer {
+                    Section("Link to Goal") {
+                        Picker("Goal", selection: $selectedGoal) {
+                            Text("None").tag(Goal?.none)
+                            ForEach(goalsViewModel.goals.filter { $0.type == .savings }) { g in
+                                Text(g.title).tag(Goal?.some(g))
+                            }
+                        }
+                    }
+                }
+                
                 Section("Note") {
                     TextField("Enter notes (Optional)", text: $note)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(isEditing ? "Edit" : "Add Transaction")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -107,6 +121,7 @@ struct AddEditTransactionView: View {
         category = existingTransaction.category
         date = existingTransaction.date
         note = existingTransaction.note
+        selectedGoal = existingTransaction.linkedGoal
         
         if let catName = category?.name, catName != "Other", !categories.contains(where: { $0.id == category?.id && $0.isSystem }) {
             // If the transaction uses a custom category, you could potentially show it.
@@ -134,9 +149,9 @@ struct AddEditTransactionView: View {
         }
 
         if let existingTransaction {
-            transactionViewModel.update(transaction: existingTransaction, amount: money, type: type, category: finalCategory, date: date, note: note)
+            transactionViewModel.update(transaction: existingTransaction, amount: money, type: type, category: finalCategory, date: date, note: note, linkedGoal: selectedGoal)
         } else {
-            transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, note: note)
+            transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, note: note, linkedGoal: selectedGoal)
         }
         dismiss()
     }

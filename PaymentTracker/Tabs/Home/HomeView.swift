@@ -28,7 +28,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Overview")
+            .navigationTitle("Home")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -36,7 +36,6 @@ struct HomeView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.blue)
                     }
                 }
             }
@@ -66,6 +65,13 @@ struct HomeView: View {
             
             Text(homeViewModel.totalBalance.formatted)
                 .font(.system(size: 40, weight: .bold, design: .rounded))
+            
+            if homeViewModel.totalBalance.amount != homeViewModel.expendableAmount.amount {
+                Text("\(homeViewModel.expendableAmount.formatted) safe to spend after savings")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, -8)
+            }
             
             HStack(spacing: 40) {
                 VStack(spacing: 4) {
@@ -205,10 +211,17 @@ struct TransactionRow: View {
                 }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(transaction.note.isEmpty ? transaction.category?.name ?? transaction.type.label : transaction.note)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.primary)
+                if transaction.type == .transfer, let goal = transaction.linkedGoal {
+                    Text("Funded: \(goal.title)")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                } else {
+                    Text(transaction.note.isEmpty ? transaction.category?.name ?? transaction.type.label : transaction.note)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                }
                 
                 Text(transaction.date, style: .date)
                     .font(.caption)

@@ -38,6 +38,7 @@ final class GoalsViewModel {
             )
             allTransactions = try context.fetch(txnDesc)
 
+            evaluateGoals()
             partitionGoals()
 
         } catch {
@@ -50,14 +51,17 @@ final class GoalsViewModel {
         title: String,
         type: GoalType,
         targetAmount: Money,
+        startDate: Date = .now,
         deadline: Date,
         blockedCategories: [Category] = []
     ) {
         guard let context = modelContext else { return }
+        // Using explicit init order to aid compiler
         let goal = Goal(
             title: title,
             type: type,
             targetAmount: targetAmount,
+            startDate: startDate,
             deadline: deadline,
             blockedCategories: blockedCategories
         )
@@ -71,11 +75,15 @@ final class GoalsViewModel {
         goal: Goal,
         title: String,
         targetAmount: Money,
-        deadline: Date
+        startDate: Date,
+        deadline: Date,
+        blockedCategories: [Category]
     ) {
         goal.title = title
         goal.targetAmount = targetAmount
+        goal.startDate = startDate
         goal.deadline = deadline
+        goal.blockedCategoryIDs = blockedCategories.map { $0.id }
         guard let context = modelContext else { return }
         save(context: context)
         Task { await load() }
@@ -89,24 +97,82 @@ final class GoalsViewModel {
         Task { await load() }
     }
 
+    @MainActor
+    func fund(goal: Goal, amount: Money) {
+        guard let context = modelContext else { return }
+        // Full signature to avoid "Extra argument" ambiguities
+        let transaction = Transaction(
+            amount: amount,
+            type: .transfer,
+            category: nil,
+            linkedGoal: goal,
+            date: .now,
+            note: "Funded \(goal.title)"
+        )
+        context.insert(transaction)
+        save(context: context)
+        Task { await load() }
+    }
+
+    var availableToSave: Money {
+        let income = allTransactions.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let expenses = allTransactions.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let transferred = allTransactions.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        return Money(income - expenses - transferred)
+    }
+
+    private func evaluateGoals() {
+        let now = Date()
+        let calendar = Calendar.current
+        for goal in goals {
+            if goal.type == .noSpend {
+                var streak = 0
+                var longest = 0
+                let start = calendar.startOfDay(for: goal.startDate)
+                let today = calendar.startOfDay(for: now)
+                let endDate = min(today, calendar.startOfDay(for: goal.deadline))
+                
+                var date = start
+                let blockList = Set(goal.blockedCategoryIDs)
+                
+                while date <= endDate {
+                    let nextDay = calendar.date(byAdding: .day, value: 1, to: date)!
+                    let hasViolated = allTransactions.contains { txn in
+                        txn.type == .expense &&
+                        txn.date >= date && txn.date < nextDay &&
+                        (txn.category.map { blockList.contains($0.id) } ?? false)
+                    }
+                    if hasViolated {
+                        streak = 0
+                    } else {
+                        streak += 1
+                        longest = max(longest, streak)
+                    }
+                    date = nextDay
+                }
+                goal.currentStreak = streak
+                goal.longestStreak = max(goal.longestStreak, longest)
+            }
+        }
+    }
+
     func currentAmount(for goal: Goal) -> Money {
         switch goal.type {
         case .savings:
-            let income = allTransactions.filter { $0.type == .income }.reduce(.zero) { $0 + $1.money }
-            let expenses = allTransactions.filter { $0.type == .expense }.reduce(.zero) { $0 + $1.money }
-            return income - expenses
+            let transferred = allTransactions
+                .filter { $0.linkedGoal?.id == goal.id }
+                .reduce(Decimal.zero) { $0 + $1.money.amount }
+            return Money(transferred)
 
         case .budgetCap:
             guard !goal.blockedCategoryIDs.isEmpty else { return .zero }
-            let now = Date()
-            let monthStart = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: now))!
-            return allTransactions
+            return Money(allTransactions
                 .filter {
                     $0.type == .expense &&
-                        $0.date >= monthStart &&
-                        goal.blockedCategoryIDs.contains($0.category?.id ?? UUID())
+                    $0.date >= goal.startDate && $0.date <= goal.deadline &&
+                    goal.blockedCategoryIDs.contains($0.category?.id ?? UUID())
                 }
-                .reduce(.zero) { $0 + $1.money }
+                .reduce(Decimal.zero) { $0 + $1.money.amount })
 
         case .noSpend:
             return Money(goal.currentStreak)

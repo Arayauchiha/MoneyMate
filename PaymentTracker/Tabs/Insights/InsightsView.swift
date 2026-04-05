@@ -81,37 +81,34 @@ struct InsightsView: View {
     }
     
     private var summarySection: some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Total Spend")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(insightsViewModel.totalForPeriod.formatted)
-                    .font(.title3)
-                    .fontWeight(.bold)
+        VStack(spacing: 16) {
+            HStack(spacing: 16) {
+                summaryCard(title: "Total Spend", value: insightsViewModel.totalForPeriod.formatted, color: .primary)
+                summaryCard(title: "Daily Avg", value: insightsViewModel.averagePerDay.formattedCompact, color: .primary)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-            )
             
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Daily Avg (\(insightsViewModel.daysInPeriod)d)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(insightsViewModel.averagePerDay.formattedCompact)
-                    .font(.title3)
-                    .fontWeight(.bold)
+            HStack(spacing: 16) {
+                summaryCard(title: "Funded to Goals", value: insightsViewModel.totalFundedToGoals.formatted, color: .green)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-            )
         }
+    }
+    
+    private func summaryCard(title: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+        )
     }
     
     private var categoryBreakdownChart: some View {
@@ -130,6 +127,18 @@ struct InsightsView: View {
                 .opacity(selectedPieAmount == nil ? 1.0 : (pieIsSelected(total) ? 1.0 : 0.5))
             }
             .chartAngleSelection(value: $selectedPieAmount)
+            .chartOverlay { proxy in
+                GeometryReader { _ in
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            let angle = proxy.angle(at: location)
+                            if let amount = proxy.value(atAngle: angle, as: Decimal.self) {
+                                selectedPieAmount = amount
+                            }
+                        }
+                }
+            }
             .chartForegroundStyleScale(
                 domain: insightsViewModel.categoryTotals.map(\.categoryName),
                 range: insightsViewModel.categoryTotals.map(\.categoryColor)
@@ -137,14 +146,24 @@ struct InsightsView: View {
             .frame(height: 220)
             
             if let selectedPieAmount, let cat = pieCategory(for: selectedPieAmount) {
-                HStack {
-                    Spacer()
-                    Text("\(cat.categoryName): \(cat.formattedTotal)")
-                        .font(.subheadline).bold()
-                        .padding(8)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
-                    Spacer()
+                let (start, end) = insightsViewModel.selectedPeriod.dateRange
+                NavigationLink(destination: CategoryDetailView(category: cat.category, startDate: start, endDate: end)) {
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 8) {
+                            Text("\(cat.categoryName): \(cat.formattedTotal)")
+                                .font(.subheadline).bold()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2).bold()
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 16)
+                        .background(Color.blue.opacity(0.1), in: Capsule())
+                        .foregroundStyle(.blue)
+                        Spacer()
+                    }
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(20)
@@ -171,7 +190,7 @@ struct InsightsView: View {
     
     private var topCategoriesList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Top Categories (Tap for flow)")
+            Text("Top Categories")
                 .font(.headline)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -180,34 +199,42 @@ struct InsightsView: View {
             Divider()
                 .padding(.leading, 64)
             
-            ForEach(Array(insightsViewModel.categoryTotals.prefix(4).enumerated()), id: \.element.id) { index, category in
-                HStack(spacing: 16) {
-                    Circle()
-                        .fill(category.categoryColor.opacity(0.2))
-                        .frame(width: 40, height: 40)
-                        .overlay {
-                            Image(systemName: category.categoryIcon)
-                                .foregroundStyle(category.categoryColor)
+            ForEach(Array(insightsViewModel.categoryTotals.prefix(4).enumerated()), id: \.element.id) { index, categoryTotal in
+                let (start, end) = insightsViewModel.selectedPeriod.dateRange
+                NavigationLink(destination: CategoryDetailView(category: categoryTotal.category, startDate: start, endDate: end)) {
+                    HStack(spacing: 16) {
+                        Circle()
+                            .fill(categoryTotal.categoryColor.opacity(0.2))
+                            .frame(width: 40, height: 40)
+                            .overlay {
+                                Image(systemName: categoryTotal.categoryIcon)
+                                    .foregroundStyle(categoryTotal.categoryColor)
+                            }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(categoryTotal.categoryName)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("\(categoryTotal.transactionCount) transactions")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(category.categoryName)
+                        
+                        Spacer()
+                        
+                        Text(categoryTotal.formattedTotal)
                             .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text("\(category.transactionCount) transactions")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .fontWeight(.bold)
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.quaternary)
                     }
-                    
-                    Spacer()
-                    
-                    Text(category.formattedTotal)
-                        .font(.subheadline)
-                        .fontWeight(.bold)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+                    .contentShape(Rectangle()) // Ensures the whole row is tappable
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                // In a wider app, we'd add .onTapGesture { navigate to filtered list } here.
+                .buttonStyle(.plain)
                 
                 if index < min(insightsViewModel.categoryTotals.count, 4) - 1 {
                     Divider()
@@ -223,49 +250,55 @@ struct InsightsView: View {
     }
     
     private var monthlyTrendChart: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("6-Month Trend")
-                .font(.headline)
-            
-            Chart(insightsViewModel.monthlyTrend) { trend in
-                LineMark(
-                    x: .value("Month", trend.month),
-                    y: .value("Amount", trend.total.amount)
-                )
-                .symbol(.circle)
-                .foregroundStyle(Color.blue)
+        NavigationLink(destination: TrendDetailView(monthly: insightsViewModel.monthlyTrend, weekly: insightsViewModel.weeklyTrend)) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Historical Trends")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
                 
-                AreaMark(
-                    x: .value("Month", trend.month),
-                    y: .value("Amount", trend.total.amount)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.blue.opacity(0.3), .blue.opacity(0.0)],
-                        startPoint: .top,
-                        endPoint: .bottom
+                Chart(insightsViewModel.monthlyTrend) { trend in
+                    LineMark(
+                        x: .value("Month", trend.label),
+                        y: .value("Amount", trend.total.amount)
                     )
-                )
+                    .symbol(.circle)
+                    .foregroundStyle(Color.blue)
+                    
+                    AreaMark(
+                        x: .value("Month", trend.label),
+                        y: .value("Amount", trend.total.amount)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.blue.opacity(0.3), .blue.opacity(0.0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading)
+                }
+                .frame(height: 180)
+                
+                Text("Tap for monthly & weekly breakdown")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .chartXSelection(value: $selectedMonth)
-            .chartYAxis {
-                AxisMarks(position: .leading)
-            }
-            .frame(height: 180)
-
-            if let selectedMonth, let trend = insightsViewModel.monthlyTrend.first(where: { $0.month == selectedMonth }) {
-                Text("\(trend.month): \(trend.total.formatted)")
-                    .font(.subheadline).bold()
-                    .padding(8)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
-            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                    .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
+            )
         }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
-        )
+        .buttonStyle(.plain)
     }
     
     private var emptyState: some View {

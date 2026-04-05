@@ -11,8 +11,10 @@ final class InsightsViewModel {
     var weekComparison: WeekComparison?
     var topCategory: CategoryTotal?
     var totalForPeriod: Money = .zero
+    var totalFundedToGoals: Money = .zero
     var averagePerDay: Money = .zero
-    var monthlyTrend: [MonthlyTotal] = []
+    var monthlyTrend: [TrendTotal] = []
+    var weeklyTrend: [TrendTotal] = []
     var daysInPeriod: Int = 1
 
     var isLoading: Bool = false
@@ -44,9 +46,14 @@ final class InsightsViewModel {
             categoryTotals = buildCategoryTotals(from: periodTxns)
             topCategory = categoryTotals.first
             totalForPeriod = periodTxns.reduce(.zero) { $0 + $1.money }
+            totalFundedToGoals = allTxns
+                .filter { $0.date >= start && $0.date <= end && $0.type == .transfer && $0.linkedGoal != nil }
+                .reduce(.zero) { $0 + $1.money }
+            
             averagePerDay = computeAveragePerDay(total: totalForPeriod, from: start, to: end)
             weekComparison = buildWeekComparison(from: allTxns)
             monthlyTrend = buildMonthlyTrend(from: allTxns)
+            weeklyTrend = buildWeeklyTrend(from: allTxns)
 
         } catch {
             self.error = error.localizedDescription
@@ -87,7 +94,7 @@ final class InsightsViewModel {
         return WeekComparison(thisWeek: thisWeek, lastWeek: lastWeek)
     }
 
-    private func buildMonthlyTrend(from transactions: [Transaction]) -> [MonthlyTotal] {
+    private func buildMonthlyTrend(from transactions: [Transaction]) -> [TrendTotal] {
         let calendar = Calendar.current
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM yy"
@@ -99,13 +106,33 @@ final class InsightsViewModel {
         )
 
         return grouped
-            .map { components, txns -> MonthlyTotal in
+            .map { components, txns -> TrendTotal in
                 let date = calendar.date(from: components) ?? Date()
                 let total = txns.reduce(Money.zero) { $0 + $1.money }
-                return MonthlyTotal(month: formatter.string(from: date), total: total, date: date)
+                return TrendTotal(label: formatter.string(from: date), total: total, date: date)
             }
             .sorted { $0.date < $1.date }
             .suffix(6)
+            .map(\.self)
+    }
+
+    private func buildWeeklyTrend(from transactions: [Transaction]) -> [TrendTotal] {
+        let calendar = Calendar.current
+        let expenses = transactions.filter { $0.type == .expense }
+        
+        let grouped = Dictionary(
+            grouping: expenses,
+            by: { calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: $0.date) }
+        )
+        
+        return grouped
+            .map { components, txns -> TrendTotal in
+                let date = calendar.date(from: components) ?? Date()
+                let total = txns.reduce(Money.zero) { $0 + $1.money }
+                return TrendTotal(label: "W\(calendar.component(.weekOfYear, from: date))", total: total, date: date)
+            }
+            .sorted { $0.date < $1.date }
+            .suffix(8)
             .map(\.self)
     }
 }
@@ -152,9 +179,9 @@ struct WeekComparison {
     }
 }
 
-struct MonthlyTotal: Identifiable {
+struct TrendTotal: Identifiable, Hashable {
     let id = UUID()
-    let month: String
+    let label: String
     let total: Money
     let date: Date
 }

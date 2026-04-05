@@ -18,8 +18,12 @@ struct GoalFormView: View {
     @State private var title: String = ""
     @State private var type: GoalType = .savings
     @State private var targetAmountText: String = ""
+    @State private var startDate: Date = .now
     @State private var deadline: Date = Calendar.current.date(byAdding: .month, value: 1, to: .now)!
     @State private var blockedCategories: [Category] = []
+    
+    @State private var isAddingCustomCategory = false
+    @State private var customCategoryName = ""
 
     private var isEditing: Bool {
         if case .edit = mode { return true }
@@ -34,9 +38,7 @@ struct GoalFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Goal Details") {
-                    TextField("Title", text: $title)
-                    
+                Section("Goal Configuration") {
                     if !isEditing {
                         Picker("Type", selection: $type) {
                             ForEach(GoalType.allCases) { t in
@@ -51,6 +53,8 @@ struct GoalFormView: View {
                         }
                     }
                     
+                    TextField("Title", text: $title)
+                    
                     if type != .noSpend {
                         HStack {
                             Text(Locale.current.currencySymbol ?? "$")
@@ -59,8 +63,13 @@ struct GoalFormView: View {
                                 .keyboardType(.decimalPad)
                         }
                     }
-                    
-                    DatePicker("Deadline", selection: $deadline, in: Date.now..., displayedComponents: .date)
+                }
+                
+                Section("Timeframe") {
+                    if type != .savings {
+                        DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
+                    }
+                    DatePicker("Deadline", selection: $deadline, in: startDate..., displayedComponents: .date)
                 }
                 
                 if type == .budgetCap || type == .noSpend {
@@ -73,13 +82,36 @@ struct GoalFormView: View {
                                 Toggle(cat.name, isOn: binding(for: cat))
                             }
                         }
+                        
+                        if isAddingCustomCategory {
+                            HStack {
+                                TextField("New Category Name", text: $customCategoryName)
+                                Button("Add") {
+                                    let cleaned = customCategoryName.trimmingCharacters(in: .whitespaces)
+                                    if !cleaned.isEmpty && !categories.contains(where: { $0.name.lowercased() == cleaned.lowercased() }) {
+                                        let newCat = Category(name: cleaned, iconName: "star.fill", colorHex: "BDC3C7", isSystem: false)
+                                        modelContext.insert(newCat)
+                                        blockedCategories.append(newCat)
+                                    }
+                                    customCategoryName = ""
+                                    isAddingCustomCategory = false
+                                }
+                                .disabled(customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty)
+                            }
+                        } else {
+                            Button("Add Category...") {
+                                isAddingCustomCategory = true
+                            }
+                        }
+                        
                     } header: {
                         Text("Monitored Categories")
                     } footer: {
-                        Text("Transactions in these categories will affect this goal.")
+                        Text("Transactions in these categories will affect this goal's gamification.")
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(isEditing ? "Edit Goal" : "New Goal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -120,7 +152,9 @@ struct GoalFormView: View {
         title = existingGoal.title
         type = existingGoal.type
         targetAmountText = existingGoal.targetAmount.formattedPlain
+        startDate = existingGoal.startDate
         deadline = existingGoal.deadline
+        blockedCategories = categories.filter { existingGoal.blockedCategoryIDs.contains($0.id) }
     }
 
     private func save() {
@@ -129,9 +163,9 @@ struct GoalFormView: View {
         let amount = Money(Decimal(string: cleaned) ?? .zero)
 
         if let existingGoal {
-            goalsViewModel.update(goal: existingGoal, title: title, targetAmount: amount, deadline: deadline)
+            goalsViewModel.update(goal: existingGoal, title: title, targetAmount: amount, startDate: startDate, deadline: deadline, blockedCategories: blockedCategories)
         } else {
-            goalsViewModel.add(title: title, type: type, targetAmount: amount, deadline: deadline, blockedCategories: blockedCategories)
+            goalsViewModel.add(title: title, type: type, targetAmount: amount, startDate: startDate, deadline: deadline, blockedCategories: blockedCategories)
         }
         dismiss()
     }

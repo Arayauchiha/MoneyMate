@@ -72,10 +72,11 @@ final class TransactionViewModel {
         type: TransactionType,
         category: Category?,
         date: Date,
-        note: String
+        note: String,
+        linkedGoal: Goal? = nil
     ) {
         guard let context = modelContext else { return }
-        let txn = Transaction(amount: amount, type: type, category: category, date: date, note: note)
+        let txn = Transaction(amount: amount, type: type, category: category, linkedGoal: linkedGoal, date: date, note: note)
         context.insert(txn)
         save(context: context)
         Task { await load() }
@@ -88,13 +89,15 @@ final class TransactionViewModel {
         type: TransactionType,
         category: Category?,
         date: Date,
-        note: String
+        note: String,
+        linkedGoal: Goal? = nil
     ) {
         transaction.money = amount
         transaction.type = type
         transaction.category = category
         transaction.date = date
         transaction.note = note
+        transaction.linkedGoal = linkedGoal
         guard let context = modelContext else { return }
         save(context: context)
         Task { await load() }
