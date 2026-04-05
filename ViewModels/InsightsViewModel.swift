@@ -13,6 +13,7 @@ final class InsightsViewModel {
     var totalForPeriod: Money = .zero
     var averagePerDay: Money = .zero
     var monthlyTrend: [MonthlyTotal] = []
+    var daysInPeriod: Int = 1
 
     var isLoading: Bool = false
     var error: String?
@@ -39,6 +40,7 @@ final class InsightsViewModel {
             let (start, end) = selectedPeriod.dateRange
             let periodTxns = allTxns.filter { $0.date >= start && $0.date <= end && $0.type == .expense }
 
+            daysInPeriod = max(1, Calendar.current.dateComponents([.day], from: start, to: end).day ?? 1)
             categoryTotals = buildCategoryTotals(from: periodTxns)
             topCategory = categoryTotals.first
             totalForPeriod = periodTxns.reduce(.zero) { $0 + $1.money }

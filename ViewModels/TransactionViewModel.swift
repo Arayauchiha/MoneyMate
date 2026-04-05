@@ -9,6 +9,8 @@ final class TransactionViewModel {
     var searchQuery: String = "" {
         didSet { applyFilters() }
     }
+    
+    var dataVersion: Int = 0
 
     var selectedType: TransactionType? {
         didSet { applyFilters() }
@@ -165,6 +167,7 @@ final class TransactionViewModel {
     private func save(context: ModelContext) {
         do {
             try context.save()
+            dataVersion += 1
         } catch {
             self.error = error.localizedDescription
         }
