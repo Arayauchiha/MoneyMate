@@ -74,24 +74,29 @@ final class Goal: Identifiable {
     }
 
     func progress(currentAmount: Money) -> Double {
-        guard !targetAmount.isZero else {
-            if type == .noSpend {
-                let totalDays = max(1, Calendar.current.dateComponents([.day], from: startDate, to: deadline).day ?? 1)
-                return min(Double(currentStreak) / Double(totalDays), 1)
-            }
-            return 0 
+        if type == .noSpend {
+            let totalDays = max(1, Calendar.current.dateComponents([.day], from: startDate, to: deadline).day ?? 1)
+            return min(Double(currentStreak) / Double(totalDays), 1)
         }
+        
+        if type == .dailyLimit {
+            // Success rate (currentStreak is used for successful days in this context)
+            let totalDays = max(1, Calendar.current.dateComponents([.day], from: startDate, to: .now).day ?? 1)
+            return min(Double(currentStreak) / Double(totalDays), 1)
+        }
+        
+        guard targetAmount.amount != 0 else { return 0 }
         let fraction = (currentAmount.amount / targetAmount.amount) as NSDecimalNumber
         return min(max(fraction.doubleValue, 0), 1)
     }
 
     @MainActor
-    func progressLabel(currentAmount: Money) -> String {
+    func progressLabel(currentAmount: Money, symbol: String) -> String {
         switch type {
         case .savings, .budgetCap:
-            "\(currentAmount.formattedCompact) / \(targetAmount.formattedCompact)"
-        case .noSpend:
-            "\(currentStreak)-day streak"
+            "\(currentAmount.formatted(with: symbol)) / \(targetAmount.formatted(with: symbol))"
+        case .noSpend, .dailyLimit:
+            "\(currentStreak) days successful"
         }
     }
 
@@ -116,6 +121,11 @@ final class Goal: Identifiable {
             if isExpired { return currentStreak >= totalDays * 8/10 ? .achieved : .failed }
             if currentStreak == 0 && elapsed > 0 { return .atRisk }
             return .onTrack
+            
+        case .dailyLimit:
+            if isExpired { return p >= 0.8 ? .achieved : .failed }
+            if p >= 0.9 { return .achieved }
+            return p < 0.7 && elapsed > 0.2 ? .atRisk : .onTrack
         }
     }
 }

@@ -6,9 +6,13 @@ struct GoalDetailView: View {
     let goal: Goal
     
     @Environment(GoalsViewModel.self) private var goalsViewModel
+    @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(\.modelContext) private var modelContext
     
     @Query private var allTransactions: [Transaction]
+    @State private var isFundingPresented = false
+    @State private var isDeleteAlertPresented = false
+    @Environment(\.dismiss) private var dismiss
     
     init(goal: Goal) {
         self.goal = goal
@@ -24,9 +28,10 @@ struct GoalDetailView: View {
             return allTransactions.filter { $0.type == .transfer && $0.linkedGoal?.id == goal.id }
         case .budgetCap, .noSpend:
             let ids = Set(goal.blockedCategoryIDs)
+            let startOfDay = Calendar.current.startOfDay(for: goal.startDate)
             return allTransactions.filter { 
                 $0.type == .expense && 
-                $0.date >= goal.startDate && 
+                $0.date >= startOfDay && 
                 $0.date <= goal.deadline &&
                 (ids.isEmpty ? true : $0.category.map { ids.contains($0.id) } ?? false)
             }
@@ -66,7 +71,7 @@ struct GoalDetailView: View {
                                     x: .value("Date", point.date),
                                     y: .value("Funded", point.incremental)
                                 )
-                                .foregroundStyle(goalsViewModel.status(for: goal).color.opacity(0.2))
+                                .foregroundStyle(goalsViewModel.status(for: goal).color.opacity(0.3))
                                 
                                 // Accumulative Line
                                 LineMark(
@@ -74,47 +79,69 @@ struct GoalDetailView: View {
                                     y: .value("Total", point.amount)
                                 )
                                 .foregroundStyle(goalsViewModel.status(for: goal).color.gradient)
-                                .interpolationMethod(.stepStart)
-                                .lineStyle(StrokeStyle(lineWidth: 3))
+                                .interpolationMethod(.monotone)
+                                .lineStyle(StrokeStyle(lineWidth: 4, lineCap: .round))
+                                
+                                // Points to make individual contributions visible
+                                PointMark(
+                                    x: .value("Date", point.date),
+                                    y: .value("Total", point.amount)
+                                )
+                                .foregroundStyle(goalsViewModel.status(for: goal).color)
+                                .symbol(Circle().strokeBorder(lineWidth: 2))
                                 
                                 AreaMark(
                                     x: .value("Date", point.date),
                                     y: .value("Total", point.amount)
                                 )
-                                .foregroundStyle(goalsViewModel.status(for: goal).color.gradient.opacity(0.1))
-                                .interpolationMethod(.stepStart)
+                                .foregroundStyle(goalsViewModel.status(for: goal).color.gradient.opacity(0.15))
+                                .interpolationMethod(.monotone)
                             }
                             
-                            if goal.type != .noSpend && !goal.targetAmount.isZero {
+                            if goal.type != .noSpend && goal.targetAmount.amount != 0 {
                                 RuleMark(y: .value("Target", goal.targetAmount.amount))
-                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
-                                    .foregroundStyle(.gray)
-                                    .annotation(position: .top, alignment: .leading) {
-                                        Text("Target: \(goal.targetAmount.formatted)")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundStyle(.secondary)
-                                            .padding(4)
-                                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4))
-                                            .offset(y: -4)
+                                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                                    .foregroundStyle(.gray.opacity(0.5))
+                                    .annotation(position: .top, alignment: .trailing) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "target")
+                                            Text("Goal: \(goal.targetAmount.formatted(with: appStateViewModel.userCurrency))")
+                                        }
+                                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(uiColor: .secondarySystemGroupedBackground).opacity(0.8), in: Capsule())
+                                        .shadow(color: .black.opacity(0.05), radius: 2)
+                                        .offset(y: -8)
                                     }
                             }
                         }
-                        .frame(height: 240)
-                        .padding()
+                        .chartXAxis {
+                            AxisMarks(preset: .extended, values: .automatic) { value in
+                                AxisGridLine()
+                                AxisValueLabel()
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                        }
+                        .frame(height: 250)
+                        .padding(20)
                         .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            RoundedRectangle(cornerRadius: 28, style: .continuous)
                                 .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                                .shadow(color: Color.black.opacity(0.02), radius: 10, x: 0, y: 5)
+                                .shadow(color: Color.black.opacity(0.03), radius: 12, x: 0, y: 6)
                         )
                         
-                        HStack {
-                            Label("Daily Funding", systemImage: "square.fill")
-                                .foregroundStyle(goalsViewModel.status(for: goal).color.opacity(0.3))
-                            Spacer()
-                            Label("Current Total", systemImage: "line.diagonal")
-                                .foregroundStyle(goalsViewModel.status(for: goal).color)
+                        HStack(spacing: 20) {
+                            HStack(spacing: 6) {
+                                Circle().fill(goalsViewModel.status(for: goal).color.opacity(0.3)).frame(width: 8, height: 8)
+                                Text("Daily Funding").font(.caption).foregroundStyle(.secondary)
+                            }
+                            HStack(spacing: 6) {
+                                RoundedRectangle(cornerRadius: 2).fill(goalsViewModel.status(for: goal).color).frame(width: 12, height: 3)
+                                Text("Cumulative Progress").font(.caption).foregroundStyle(.secondary)
+                            }
                         }
-                        .font(.caption2)
                         .padding(.horizontal)
                     }
                 }
@@ -134,12 +161,12 @@ struct GoalDetailView: View {
                                     .padding(.horizontal, 16)
                                 
                                 if index < associatedTransactions.count - 1 {
-                                    Divider().padding(.leading, 64)
+                                    Divider().padding(.leading, 72)
                                 }
                             }
                         }
                         .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            RoundedRectangle(cornerRadius: 28, style: .continuous)
                                 .fill(Color(uiColor: .secondarySystemGroupedBackground))
                         )
                     }
@@ -150,8 +177,40 @@ struct GoalDetailView: View {
         .navigationTitle("Goal Tracking")
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(uiColor: .systemGroupedBackground))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        goalsViewModel.presentEdit(goal)
+                    } label: {
+                        Label("Edit Goal", systemImage: "pencil")
+                    }
+                    
+                    Button(role: .destructive) {
+                        isDeleteAlertPresented = true
+                    } label: {
+                        Label("Delete Goal", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.title3)
+                }
+            }
+        }
+        .sheet(isPresented: $isFundingPresented) {
+            FundGoalView(goal: goal)
+        }
+        .alert("Delete Goal?", isPresented: $isDeleteAlertPresented) {
+            Button("Delete", role: .destructive) {
+                goalsViewModel.delete(goal)
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will permanently remove the goal and all its tracking data. This cannot be undone.")
+        }
     }
-
+    
     private var headerSection: some View {
         VStack(spacing: 20) {
             HStack {
@@ -176,13 +235,14 @@ struct GoalDetailView: View {
                     .foregroundStyle(status.color)
             }
             
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(goalsViewModel.progressLabel(for: goal))
+                    Text(goalsViewModel.progressLabel(for: goal, symbol: appStateViewModel.userCurrency))
                         .font(.headline)
                     Spacer()
                     Text("\(Int(goalsViewModel.progressFraction(for: goal) * 100))%")
                         .font(.subheadline).bold()
+                        .foregroundStyle(.blue)
                 }
                 
                 ProgressView(value: goalsViewModel.progressFraction(for: goal))
@@ -190,10 +250,31 @@ struct GoalDetailView: View {
                     .scaleEffect(x: 1, y: 1.5, anchor: .center)
             }
             
-            HStack {
-                DetailStat(title: "Deadline", value: goal.deadline.formatted(.dateTime.day().month().year()))
+            HStack(alignment: .center) {
+                HStack(spacing: 20) {
+                    DetailStat(title: "Deadline", value: goal.deadline.formatted(.dateTime.day().month().year()))
+                    DetailStat(title: "Time Left", value: "\(goal.daysRemaining) days")
+                }
+                
                 Spacer()
-                DetailStat(title: "Time Left", value: "\(goal.daysRemaining) days")
+                
+                if goal.type == .savings && goalsViewModel.status(for: goal) != .achieved {
+                    Button {
+                        isFundingPresented = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Fund Goal")
+                        }
+                        .font(.subheadline).bold()
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(Capsule())
+                        .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                    }
+                }
             }
         }
     }

@@ -16,72 +16,91 @@ struct ArchivedTransactionsView: View {
     @State private var activeAlert: AlertType = .none
 
     var body: some View {
-        Group {
-            if archivedTransactions.isEmpty {
-                VStack {
+        ZStack(alignment: .bottom) {
+            Color(uiColor: .systemGroupedBackground)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                if archivedTransactions.isEmpty {
                     ContentUnavailableView {
                         Label("No Archived Transactions", systemImage: "archivebox")
                     } description: {
                         Text("When you archive transactions, they will appear here.")
                     }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(uiColor: .systemGroupedBackground))
-            } else {
-                List(selection: $selectedTransactions) {
-                    Section {
-                        ForEach(archivedTransactions) { txn in
-                            TransactionCard(transaction: txn)
-                                .tag(txn.id)
-                                .swipeActions(edge: .leading) {
-                                    if editMode == .inactive {
-                                        Button {
-                                            transactionViewModel.restore(txn)
-                                        } label: {
-                                            Label("Restore", systemImage: "arrow.uturn.backward")
-                                        }
-                                        .tint(.green)
-                                    }
-                                }
-                                .swipeActions(edge: .trailing) {
-                                    if editMode == .inactive {
-                                        Button(role: .destructive) {
-                                            transactionToDelete = txn
-                                            activeAlert = .delete
-                                        } label: {
-                                            Label("Delete Forever", systemImage: "trash.fill")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(selection: $selectedTransactions) {
+                        Section {
+                            ForEach(archivedTransactions) { txn in
+                                TransactionCard(transaction: txn)
+                                    .tag(txn.id)
+                                    .swipeActions(edge: .leading) {
+                                        if editMode == .inactive {
+                                            Button {
+                                                transactionToDelete = txn
+                                                activeAlert = .restore
+                                            } label: {
+                                                Label("Restore", systemImage: "arrow.uturn.backward")
+                                            }
+                                            .tint(.green)
                                         }
                                     }
-                                }
+                                    .swipeActions(edge: .trailing) {
+                                        if editMode == .inactive {
+                                            Button {
+                                                transactionToDelete = txn
+                                                activeAlert = .delete
+                                            } label: {
+                                                Label("Delete Forever", systemImage: "trash.fill")
+                                            }
+                                        }
+                                    }
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                            }
+                            
+                            // Spacer item within the SAME section to avoid extra separators
+                            Color.clear
+                                .frame(height: 140)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                        }
-                    } header: {
-                        Text("Recently Deleted")
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.secondary)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 16)
-                            .background(.ultraThinMaterial, in: Capsule())
-                            .padding(.leading, -4)
-                            .onTapGesture {
-                                if editMode == .inactive && !archivedTransactions.isEmpty {
-                                    withAnimation {
-                                        editMode = .active
-                                        appStateViewModel.isTabBarHidden = true
+                        } header: {
+                            Text("Recently Deleted")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundStyle(.secondary)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 16)
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .onTapGesture {
+                                    if editMode == .inactive && !archivedTransactions.isEmpty {
+                                        withAnimation {
+                                            editMode = .active
+                                            appStateViewModel.isTabBarHidden = true
+                                        }
                                     }
                                 }
-                            }
-                    } footer: {
-                        if !archivedTransactions.isEmpty {
-                            Text("These transactions still count towards your balance to match your bank history. Restore them to see them in the main list, or delete forever to remove their impact.")
                         }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
-                .background(Color(uiColor: .systemGroupedBackground))
+            }
+            
+            // Subdued Info Watermark at fixed bottom
+            if !archivedTransactions.isEmpty {
+                VStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                    Text("These transactions still count towards your balance to match your bank history. Restore them to see them in the main list, or delete forever to remove their impact.")
+                        .font(.system(size: 10, weight: .medium))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                .foregroundStyle(.secondary.opacity(0.4))
+                .padding(.bottom, 24)
+                .allowsHitTesting(false)
             }
         }
         .navigationTitle("Archive")
@@ -143,8 +162,12 @@ struct ArchivedTransactionsView: View {
                     }
                 }
             } else if activeAlert == .restore {
-                Button("Restore Items") {
-                    restoreSelected()
+                Button("Restore") {
+                    if let toRestore = transactionToDelete {
+                        transactionViewModel.restore(toRestore)
+                    } else {
+                        restoreSelected()
+                    }
                 }
             }
             Button("Cancel", role: .cancel) { }
@@ -157,23 +180,23 @@ struct ArchivedTransactionsView: View {
     private var alertTitle: String {
         switch activeAlert {
         case .delete: return "Permanent Delete"
-        case .restore: return "Restore Transactions"
+        case .restore: return "Restore"
         case .none: return ""
         }
     }
     
     private var alertMessage: Text {
+        let count = transactionToDelete != nil ? 1 : selectedTransactions.count
         switch activeAlert {
         case .delete:
-            let count = transactionToDelete != nil ? 1 : selectedTransactions.count
-            return Text("This will permanently remove \(count > 1 ? "\(count) records" : "the record") and restore the amounts to your balance. This action cannot be undone.")
+            return Text("This will permanently remove \(count > 1 ? "\(count) records" : "the record") and restore the amounts to your balance. This cannot be undone.")
         case .restore:
-            return Text("Restore \(selectedTransactions.count) transactions to your main list?")
+            return Text("Restore \(count) \(count > 1 ? "transactions" : "transaction") to your main list?")
         case .none:
             return Text("")
         }
     }
-
+    
     private func exitEditMode() {
         withAnimation {
             editMode = .inactive
@@ -183,10 +206,12 @@ struct ArchivedTransactionsView: View {
     }
 
     private func toggleSelectAll() {
-        if selectedTransactions.count == archivedTransactions.count {
-            selectedTransactions.removeAll()
-        } else {
-            selectedTransactions = Set(archivedTransactions.map { $0.id })
+        withAnimation(.snappy(duration: 0.2)) {
+            if selectedTransactions.count == archivedTransactions.count {
+                selectedTransactions.removeAll()
+            } else {
+                selectedTransactions = Set(archivedTransactions.map { $0.id })
+            }
         }
     }
 

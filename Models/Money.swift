@@ -1,135 +1,88 @@
 import Foundation
 
-extension Decimal {
-    nonisolated var doubleValue: Double {
-        (self as NSDecimalNumber).doubleValue
-    }
-}
-
-nonisolated struct Money: Codable, Hashable, Sendable {
+struct Money: Equatable, Comparable, Hashable, Sendable {
     let amount: Decimal
 
-    init(_ amount: Decimal) {
-        self.amount = amount
+    nonisolated static let zero = Money(0)
+
+    nonisolated init(_ amount: Decimal) {
+        // Round to 2 decimal places by default for currency
+        let rounded = NSDecimalNumber(decimal: amount).rounding(accordingToBehavior: nil).decimalValue
+        self.amount = rounded
     }
 
-    init(_ amount: Int) {
-        self.amount = Decimal(amount)
+    nonisolated static func < (lhs: Money, rhs: Money) -> Bool {
+        lhs.amount < rhs.amount
     }
 
-    static let zero = Money(Decimal.zero)
-
-    static func + (lhs: Money, rhs: Money) -> Money {
+    nonisolated static func + (lhs: Money, rhs: Money) -> Money {
         Money(lhs.amount + rhs.amount)
     }
 
-    static func - (lhs: Money, rhs: Money) -> Money {
+    nonisolated static func - (lhs: Money, rhs: Money) -> Money {
         Money(lhs.amount - rhs.amount)
     }
 
-    static func * (lhs: Money, rhs: Decimal) -> Money {
-        Money(lhs.amount * rhs)
-    }
-
-    var isNegative: Bool {
-        amount < .zero
-    }
-
-    var isZero: Bool {
+    nonisolated var isZero: Bool {
         amount == .zero
     }
 
-    var absolute: Money {
+    nonisolated var absolute: Money {
         Money(abs(amount))
     }
-}
 
-extension Money: Comparable {
-    static func < (lhs: Money, rhs: Money) -> Bool {
-        lhs.amount < rhs.amount
+    // Default formatting using local storage for thread-safety and reactivity
+    nonisolated var formatted: String {
+        let symbol = UserDefaults.standard.string(forKey: "user_currency") ?? "₹"
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencySymbol = symbol
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "0"
     }
-}
-
-extension Money {
-    private static let currencyFormatter: NumberFormatter = {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencyCode = Locale.current.currency?.identifier ?? "USD"
-        f.locale = .current
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 2
-        return f
-    }()
-
-    private static let currencyFormatterNoSymbol: NumberFormatter = {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.minimumFractionDigits = 2
-        f.maximumFractionDigits = 2
-        f.groupingSeparator = Locale.current.groupingSeparator ?? ","
-        f.decimalSeparator = Locale.current.decimalSeparator ?? "."
-        f.usesGroupingSeparator = true
-        return f
-    }()
-
-    private static let compactFormatter: NumberFormatter = {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.maximumFractionDigits = 1
-        f.minimumFractionDigits = 0
-        f.usesGroupingSeparator = true
-        return f
-    }()
-
-    var formatted: String {
-        let nsDecimal = amount as NSDecimalNumber
-        return Self.currencyFormatter.string(from: nsDecimal) ?? fallbackString
+    
+    // Explicitly formatted with a specific symbol for reactive UI
+    nonisolated func formatted(with symbol: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencySymbol = symbol
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "0"
     }
 
-    var formattedWithSign: String {
-        let sign = amount >= .zero ? "+" : ""
-        return "\(sign)\(formatted)"
+    nonisolated var formattedPlain: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: amount as NSDecimalNumber) ?? "0"
     }
 
-    var formattedCompact: String {
-        let symbol = Self.currencyFormatter.currencySymbol ?? "$"
-        let abs = Swift.abs(amount)
-        let sign = amount < .zero ? "-" : ""
+    nonisolated var formattedWithSign: String {
+        let sign = amount > .zero ? "+" : (amount < .zero ? "-" : "")
+        let absVal = absolute.formatted
+        return "\(sign)\(absVal)"
+    }
 
-        switch abs {
-        case _ where abs >= 1_000_000:
-            let val = (abs / 1_000_000) as NSDecimalNumber
-            return "\(sign)\(symbol)\(Self.compactFormatter.string(from: val) ?? "")M"
-        case _ where abs >= 1000:
-            let val = (abs / 1000) as NSDecimalNumber
-            return "\(sign)\(symbol)\(Self.compactFormatter.string(from: val) ?? "")K"
-        default:
-            return "\(sign)\(formatted)"
+    nonisolated var formattedCompact: String {
+        let sign = amount < 0 ? "-" : ""
+        let absAmount = abs(amount)
+        let symbol = UserDefaults.standard.string(forKey: "user_currency") ?? "₹"
+        
+        if absAmount >= 1_000_000 {
+            return "\(sign)\(symbol)\((absAmount / 1_000_000).formatted(.number.precision(.fractionLength(0...1))))M"
+        } else if absAmount >= 1_000 {
+            return "\(sign)\(symbol)\((absAmount / 1_000).formatted(.number.precision(.fractionLength(0...1))))k"
+        } else {
+            return formatted
         }
     }
+}
 
+extension Decimal {
     var formattedPlain: String {
-        let nsDecimal = amount as NSDecimalNumber
-        return Self.currencyFormatterNoSymbol.string(from: nsDecimal) ?? fallbackString
-    }
-
-    static var currencySymbol: String {
-        currencyFormatter.currencySymbol ?? "$"
-    }
-
-    private var fallbackString: String {
-        unsafe String(format: "%.2f", (amount as NSDecimalNumber).doubleValue)
-    }
-}
-
-extension Money: ExpressibleByIntegerLiteral {
-    init(integerLiteral value: Int) {
-        self.init(value)
-    }
-}
-
-extension Money: CustomStringConvertible {
-    var description: String {
-        formatted
+        Money(self).formattedPlain
     }
 }

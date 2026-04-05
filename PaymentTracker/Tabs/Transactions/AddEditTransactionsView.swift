@@ -8,6 +8,7 @@ enum AddEditTransactionMode {
 
 struct AddEditTransactionView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
+    @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(GoalsViewModel.self) private var goalsViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -20,6 +21,7 @@ struct AddEditTransactionView: View {
     @State private var type: TransactionType = .expense
     @State private var category: Category?
     @State private var date: Date = .now
+    @State private var title: String = ""
     @State private var note: String = ""
     @State private var customCategoryName: String = ""
     @State private var selectedGoal: Goal? = nil
@@ -35,8 +37,8 @@ struct AddEditTransactionView: View {
     }
     
     private var sortedCategories: [Category] {
-        let regulars = categories.filter { $0.name != "Other" }
-        let other = categories.first { $0.name == "Other" }
+        let regulars = categories.filter { $0.name != "Miscellaneous" }
+        let other = categories.first { $0.name == "Miscellaneous" }
         if let other {
             return regulars + [other]
         }
@@ -53,9 +55,18 @@ struct AddEditTransactionView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .padding(.bottom, 8)
+                }
+                .listRowSeparator(.hidden)
+
+                Section {
+                    TextField("Title (e.g. Tuition Fee)", text: $title)
+                        .font(.headline)
                     
                     HStack {
-                        Text(Locale.current.currencySymbol ?? "$")
+                        Text(appStateViewModel.userCurrency)
                             .foregroundStyle(.secondary)
                         TextField("Amount", text: $amountText)
                             .keyboardType(.decimalPad)
@@ -93,7 +104,8 @@ struct AddEditTransactionView: View {
                 }
                 
                 Section("Note") {
-                    TextField("Enter notes (Optional)", text: $note)
+                    TextField("Personal memo", text: $note, axis: .vertical)
+                        .lineLimit(3...10)
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -105,7 +117,7 @@ struct AddEditTransactionView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", role: .confirm) { save() }
-                        .disabled(amountText.isEmpty || (category?.name == "__create_new__" && customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty))
+                        .disabled(amountText.isEmpty || title.trimmingCharacters(in: .whitespaces).isEmpty || (category?.name == "__create_new__" && customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty))
                 }
             }
             .onAppear {
@@ -123,6 +135,7 @@ struct AddEditTransactionView: View {
         type = existingTransaction.type
         category = existingTransaction.category
         date = existingTransaction.date
+        title = existingTransaction.title
         note = existingTransaction.note
         selectedGoal = existingTransaction.linkedGoal
     }
@@ -148,9 +161,9 @@ struct AddEditTransactionView: View {
         }
 
         if let existingTransaction {
-            transactionViewModel.update(transaction: existingTransaction, amount: money, type: type, category: finalCategory, date: date, note: note, linkedGoal: selectedGoal)
+            transactionViewModel.update(transaction: existingTransaction, amount: money, type: type, category: finalCategory, date: date, title: title, note: note, linkedGoal: selectedGoal)
         } else {
-            transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, note: note, linkedGoal: selectedGoal)
+            transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, title: title, note: note, linkedGoal: selectedGoal)
         }
         dismiss()
     }

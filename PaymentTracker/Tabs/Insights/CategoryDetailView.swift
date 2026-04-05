@@ -79,6 +79,7 @@ struct CategoryDetailView: View {
                                 .font(.title)
                                 .fontWeight(.black)
                                 .textCase(nil)
+                                .foregroundStyle(.primary)
                             
                             Button {
                                 isPeriodPickerPresented = true
@@ -92,7 +93,7 @@ struct CategoryDetailView: View {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.1), in: Capsule())
+                                .background(Color.blue.opacity(0.12), in: Capsule())
                                 .foregroundStyle(.blue)
                             }
                             .buttonStyle(.plain)
@@ -166,7 +167,7 @@ struct CategoryDetailView: View {
                 } label: {
                     Image(systemName: "slider.horizontal.3")
                         .font(.headline)
-                        .foregroundStyle(.primary) // Remove the blur/background
+                        .foregroundStyle(.primary)
                         .padding(4)
                 }
             }
@@ -198,17 +199,25 @@ struct CategoryDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption2)
-                    .fontWeight(.bold)
+                    .fontWeight(.black)
                     .textCase(.uppercase)
                     .foregroundStyle(.secondary)
                 Text(value)
                     .font(.headline)
+                    .foregroundStyle(.primary)
                     .contentTransition(.numericText())
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(color.opacity(0.05), in: RoundedRectangle(cornerRadius: 20))
+        .background {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(color.opacity(0.1))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .strokeBorder(color.opacity(0.15), lineWidth: 1)
+                }
+        }
     }
     
     private var filterSheet: some View {

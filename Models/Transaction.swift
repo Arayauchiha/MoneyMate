@@ -6,7 +6,8 @@ final class Transaction: Identifiable {
     var id: UUID
     var type: TransactionType
     var date: Date
-    var note: String
+    var title: String = ""
+    var note: String = ""
     var isArchived: Bool = false
 
     private var amountRaw: String
@@ -21,6 +22,7 @@ final class Transaction: Identifiable {
         category: Category? = nil,
         linkedGoal: Goal? = nil,
         date: Date = .now,
+        title: String = "",
         note: String = ""
     ) {
         self.id = id
@@ -29,6 +31,7 @@ final class Transaction: Identifiable {
         self.category = category
         self.linkedGoal = linkedGoal
         self.date = date
+        self.title = title
         self.note = note
     }
 

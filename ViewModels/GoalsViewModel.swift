@@ -101,6 +101,7 @@ final class GoalsViewModel {
     @MainActor
     func fund(goal: Goal, amount: Money) {
         guard let context = modelContext else { return }
+        guard goal.type == .savings else { return }
         // Full signature to avoid "Extra argument" ambiguities
         let transaction = Transaction(
             amount: amount,
@@ -108,7 +109,8 @@ final class GoalsViewModel {
             category: nil,
             linkedGoal: goal,
             date: .now,
-            note: "Funded \(goal.title)"
+            title: "Funded: \(goal.title)",
+            note: ""
         )
         context.insert(transaction)
         save(context: context)
@@ -121,6 +123,17 @@ final class GoalsViewModel {
         let transferred = allTransactions.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
         let diff = income - expenses - transferred
         return Money(max(0, diff))
+    }
+
+    var isOverspent: Bool {
+        let income = allTransactions.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let expenses = allTransactions.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let transferred = allTransactions.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        return (income - expenses - transferred) < 0
+    }
+    
+    var hasNoTransactions: Bool {
+        allTransactions.isEmpty
     }
 
     private func evaluateGoals() {
@@ -168,16 +181,17 @@ final class GoalsViewModel {
 
         case .budgetCap:
             guard !goal.blockedCategoryIDs.isEmpty else { return .zero }
+            let startOfDay = Calendar.current.startOfDay(for: goal.startDate)
             return Money(allTransactions
                 .filter {
                     $0.type == .expense &&
-                    $0.date >= goal.startDate && $0.date <= goal.deadline &&
+                    $0.date >= startOfDay && $0.date <= goal.deadline &&
                     goal.blockedCategoryIDs.contains($0.category?.id ?? UUID())
                 }
                 .reduce(Decimal.zero) { $0 + $1.money.amount })
 
         case .noSpend:
-            return Money(goal.currentStreak)
+            return Money(Decimal(goal.currentStreak))
         }
     }
 
@@ -189,8 +203,9 @@ final class GoalsViewModel {
         goal.progress(currentAmount: currentAmount(for: goal))
     }
 
-    func progressLabel(for goal: Goal) -> String {
-        goal.progressLabel(currentAmount: currentAmount(for: goal))
+    @MainActor
+    func progressLabel(for goal: Goal, symbol: String) -> String {
+        goal.progressLabel(currentAmount: currentAmount(for: goal), symbol: symbol)
     }
 
     func presentAdd() {

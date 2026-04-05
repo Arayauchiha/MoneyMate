@@ -6,6 +6,7 @@ struct GoalsView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
 
     @State private var goalToFund: Goal?
+    @State private var goalToDelete: Goal?
 
     var body: some View {
         NavigationStack {
@@ -19,32 +20,17 @@ struct GoalsView: View {
                         emptyStateView
                     } else {
                         if !goalsViewModel.activeGoals.isEmpty {
-                            GoalSection(title: "Active Goals", goals: goalsViewModel.activeGoals, viewModel: goalsViewModel) { goal in
+                            GoalSection(title: "Active Goals", goals: goalsViewModel.activeGoals, viewModel: goalsViewModel, appState: appStateViewModel, goalToDelete: $goalToDelete) { goal in
                                 goalToFund = goal
                             }
                         }
                         
                         if !goalsViewModel.achievedGoals.isEmpty {
-                            GoalSection(title: "Completed Goals", goals: goalsViewModel.achievedGoals, viewModel: goalsViewModel, onFund: nil)
+                            GoalSection(title: "Completed Goals", goals: goalsViewModel.achievedGoals, viewModel: goalsViewModel, appState: appStateViewModel, goalToDelete: $goalToDelete, onFund: nil)
                         }
                         
                         if !goalsViewModel.completedGoals.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Archive")
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.horizontal, 4)
-                                
-                                ForEach(goalsViewModel.completedGoals) { goal in
-                                    NavigationLink(value: goal) {
-                                        GoalCardRow(goal: goal, viewModel: goalsViewModel, onFund: nil)
-                                            .opacity(0.6)
-                                            .padding()
-                                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
+                            GoalSection(title: "Archive", goals: goalsViewModel.completedGoals, viewModel: goalsViewModel, appState: appStateViewModel, goalToDelete: $goalToDelete, opacity: 0.6, onFund: nil)
                         }
                     }
                 }
@@ -84,6 +70,19 @@ struct GoalsView: View {
             .sheet(item: $goalToFund) { targetGoal in
                 FundGoalView(goal: targetGoal)
             }
+            .alert("Delete Goal?", isPresented: Binding(
+                get: { goalToDelete != nil },
+                set: { if !$0 { goalToDelete = nil } }
+            )) {
+                Button("Delete", role: .destructive) {
+                    if let goal = goalToDelete {
+                        goalsViewModel.delete(goal)
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This will permanently remove the goal and all its tracking data. This cannot be undone.")
+            }
         }
     }
 
@@ -95,25 +94,32 @@ struct GoalsView: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             
-            Text(money.formatted)
+            Text("\(appStateViewModel.userCurrency)\(money.formattedPlain)")
                 .font(.system(size: 34, weight: .black, design: .rounded))
                 .foregroundStyle(money.isZero ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.green))
             
-            if money.isZero {
+            if goalsViewModel.isOverspent {
                 Text("Capped at zero due to overspending.")
                     .font(.caption2)
                     .foregroundStyle(.red)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
                     .background(.red.opacity(0.1), in: Capsule())
+            } else if goalsViewModel.hasNoTransactions {
+                Text("Add income to start saving.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(.secondary.opacity(0.1), in: Capsule())
             }
         }
         .frame(maxWidth: .infinity)
         .padding(32)
         .background(
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
-                .shadow(color: Color.black.opacity(0.02), radius: 10, x: 0, y: 5)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 6)
         )
     }
     
@@ -133,7 +139,10 @@ struct GoalSection: View {
     let title: String
     let goals: [Goal]
     let viewModel: GoalsViewModel
-    var onFund: ((Goal) -> Void)?
+    let appState: AppStateViewModel
+    @Binding var goalToDelete: Goal?
+    var opacity: Double = 1.0
+    var onFund: ((Goal) -> Void)? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -144,17 +153,18 @@ struct GoalSection: View {
             
             ForEach(goals) { goal in
                 NavigationLink(value: goal) {
-                    GoalCardRow(goal: goal, viewModel: viewModel) {
+                    GoalCardRow(goal: goal, viewModel: viewModel, appState: appState) {
                         onFund?(goal)
                     }
                     .padding()
+                    .opacity(opacity)
                     .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 4)
+                    .shadow(color: Color.black.opacity(0.02 * opacity), radius: 8, x: 0, y: 4)
                 }
                 .buttonStyle(.plain)
                 .contextMenu {
                     Button { viewModel.presentEdit(goal) } label: { Label("Edit", systemImage: "pencil") }
-                    Button(role: .destructive) { viewModel.delete(goal) } label: { Label("Delete", systemImage: "trash") }
+                    Button(role: .destructive) { goalToDelete = goal } label: { Label("Delete", systemImage: "trash") }
                 }
             }
         }
@@ -164,6 +174,7 @@ struct GoalSection: View {
 struct GoalCardRow: View {
     let goal: Goal
     let viewModel: GoalsViewModel
+    let appState: AppStateViewModel
     var onFund: (() -> Void)? = nil
     
     var body: some View {
@@ -191,13 +202,13 @@ struct GoalCardRow: View {
             
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text(viewModel.progressLabel(for: goal))
+                    Text(viewModel.progressLabel(for: goal, symbol: appState.userCurrency))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     
                     Spacer()
                     
-                    if let onFund = onFund, viewModel.status(for: goal) != .achieved {
+                    if let onFund = onFund, goal.type == .savings, viewModel.status(for: goal) != .achieved {
                         Button {
                             onFund()
                         } label: {

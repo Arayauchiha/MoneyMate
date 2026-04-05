@@ -169,7 +169,7 @@ struct CategoryTotal: Identifiable {
     let transactionCount: Int
 
     var categoryName: String {
-        category?.name ?? "Other"
+        category?.name ?? "Miscellaneous"
     }
 
     var categoryIcon: String {

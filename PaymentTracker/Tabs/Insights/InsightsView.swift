@@ -3,6 +3,7 @@ import Charts
 
 struct InsightsView: View {
     @Environment(InsightsViewModel.self) private var insightsViewModel
+    @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(TransactionViewModel.self) private var transactionViewModel
 
     @State private var selectedPieAmount: Decimal?
@@ -45,8 +46,6 @@ struct InsightsView: View {
     
     private var periodPicker: some View {
         @Bindable var viewModel = insightsViewModel
-        // If user wants custom specific date logic, a standard multi-DatePicker sheet could go here.
-        // For simplicity, we keep the segmentation but could extend Custom Date models later.
         return Picker("Period", selection: $viewModel.selectedPeriod) {
             ForEach(TimePeriod.allCases) { period in
                 Text(period.label).tag(period)
@@ -66,7 +65,7 @@ struct InsightsView: View {
                 HStack {
                     Image(systemName: comparison.isImproved ? "arrow.down.right" : "arrow.up.right")
                         .foregroundStyle(comparison.isImproved ? .green : .red)
-                    Text(comparison.delta.formatted)
+                    Text(comparison.delta.formatted(with: appStateViewModel.userCurrency))
                         .fontWeight(.semibold)
                         .foregroundStyle(comparison.isImproved ? .green : .red)
                 }
@@ -81,23 +80,40 @@ struct InsightsView: View {
     }
     
     private var summarySection: some View {
-        VStack(spacing: 16) {
+        let (start, end) = insightsViewModel.selectedPeriod.dateRange
+        return VStack(spacing: 16) {
             HStack(spacing: 16) {
-                summaryCard(title: "Total Spend", value: insightsViewModel.totalForPeriod.formatted, color: .primary)
-                summaryCard(title: "Daily Avg", value: insightsViewModel.averagePerDay.formattedCompact, color: .primary)
+                NavigationLink(destination: InsightsDetailView(type: .totalSpend, startDate: start, endDate: end)) {
+                    summaryCard(title: "Total Spend", value: insightsViewModel.totalForPeriod.formatted(with: appStateViewModel.userCurrency), color: .primary)
+                }
+                .buttonStyle(.plain)
+                
+                NavigationLink(destination: InsightsDetailView(type: .dailyAverage, startDate: start, endDate: end)) {
+                    summaryCard(title: "Daily Avg", value: insightsViewModel.averagePerDay.formatted(with: appStateViewModel.userCurrency), color: .primary)
+                }
+                .buttonStyle(.plain)
             }
             
             HStack(spacing: 16) {
-                summaryCard(title: "Funded to Goals", value: insightsViewModel.totalFundedToGoals.formatted, color: .green)
+                NavigationLink(destination: InsightsDetailView(type: .fundedToGoals, startDate: start, endDate: end)) {
+                    summaryCard(title: "Funded to Goals", value: insightsViewModel.totalFundedToGoals.formatted(with: appStateViewModel.userCurrency), color: .green)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
     
     private func summaryCard(title: String, value: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
@@ -108,6 +124,7 @@ struct InsightsView: View {
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
         )
     }
     
@@ -151,7 +168,7 @@ struct InsightsView: View {
                     HStack {
                         Spacer()
                         HStack(spacing: 8) {
-                            Text("\(cat.categoryName): \(cat.formattedTotal)")
+                            Text("\(cat.categoryName): \(cat.total.formatted(with: appStateViewModel.userCurrency))")
                                 .font(.subheadline).bold()
                             Image(systemName: "chevron.right")
                                 .font(.caption2).bold()
@@ -197,7 +214,7 @@ struct InsightsView: View {
                 Spacer()
                 if !insightsViewModel.categoryTotals.isEmpty {
                     NavigationLink {
-                        AllCategoriesView(allTotals: insightsViewModel.categoryTotals, dateRange: insightsViewModel.selectedPeriod.dateRange)
+                        AllCategoriesView()
                     } label: {
                         Text("See All")
                             .font(.subheadline).bold()
@@ -211,7 +228,8 @@ struct InsightsView: View {
             Divider()
                 .padding(.leading, 64)
             
-            ForEach(Array(insightsViewModel.categoryTotals.prefix(4).enumerated()), id: \.element.id) { index, categoryTotal in
+            let topThree = insightsViewModel.categoryTotals.prefix(3)
+            ForEach(Array(topThree.enumerated()), id: \.element.id) { index, categoryTotal in
                 let (start, end) = insightsViewModel.selectedPeriod.dateRange
                 NavigationLink(destination: CategoryDetailView(category: categoryTotal.category, startDate: start, endDate: end)) {
                     HStack(spacing: 16) {
@@ -234,7 +252,7 @@ struct InsightsView: View {
                         
                         Spacer()
                         
-                        Text(categoryTotal.formattedTotal)
+                        Text(categoryTotal.total.formatted(with: appStateViewModel.userCurrency))
                             .font(.subheadline)
                             .fontWeight(.bold)
                         
@@ -244,11 +262,11 @@ struct InsightsView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
-                    .contentShape(Rectangle()) // Ensures the whole row is tappable
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 
-                if index < min(insightsViewModel.categoryTotals.count, 4) - 1 {
+                if index < topThree.count - 1 {
                     Divider()
                         .padding(.leading, 64)
                 }

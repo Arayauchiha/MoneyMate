@@ -17,6 +17,8 @@ enum TrendUnit: String, CaseIterable, Identifiable {
 }
 
 struct TrendDetailView: View {
+    @Environment(AppStateViewModel.self) private var appStateViewModel
+    
     let dailyData: [TrendTotal]
     let weeklyData: [TrendTotal]
     let monthlyData: [TrendTotal]
@@ -90,7 +92,7 @@ struct TrendDetailView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    Text(trend.total.formatted)
+                                    Text(trend.total.formatted(with: appStateViewModel.userCurrency))
                                         .font(.subheadline).bold()
                                 }
                                 .padding(.vertical, 4)

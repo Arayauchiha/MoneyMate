@@ -72,11 +72,12 @@ final class TransactionViewModel {
         type: TransactionType,
         category: Category?,
         date: Date,
+        title: String,
         note: String,
         linkedGoal: Goal? = nil
     ) {
         guard let context = modelContext else { return }
-        let txn = Transaction(amount: amount, type: type, category: category, linkedGoal: linkedGoal, date: date, note: note)
+        let txn = Transaction(amount: amount, type: type, category: category, linkedGoal: linkedGoal, date: date, title: title, note: note)
         context.insert(txn)
         save(context: context)
         Task { await load() }
@@ -89,6 +90,7 @@ final class TransactionViewModel {
         type: TransactionType,
         category: Category?,
         date: Date,
+        title: String,
         note: String,
         linkedGoal: Goal? = nil
     ) {
@@ -96,6 +98,7 @@ final class TransactionViewModel {
         transaction.type = type
         transaction.category = category
         transaction.date = date
+        transaction.title = title
         transaction.note = note
         transaction.linkedGoal = linkedGoal
         guard let context = modelContext else { return }
@@ -189,7 +192,8 @@ final class TransactionViewModel {
         if !searchQuery.isEmpty {
             let q = searchQuery.lowercased()
             result = result.filter {
-                $0.note.lowercased().contains(q) ||
+                $0.title.lowercased().contains(q) ||
+                    $0.note.lowercased().contains(q) ||
                     ($0.category?.name.lowercased().contains(q) ?? false) ||
                     $0.money.formatted.contains(q)
             }

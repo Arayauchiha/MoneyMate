@@ -8,6 +8,7 @@ enum GoalFormMode {
 
 struct GoalFormView: View {
     @Environment(GoalsViewModel.self) private var goalsViewModel
+    @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     
@@ -57,7 +58,7 @@ struct GoalFormView: View {
                     
                     if type != .noSpend {
                         HStack {
-                            Text(Locale.current.currencySymbol ?? "$")
+                            Text(appStateViewModel.userCurrency)
                                 .foregroundStyle(.secondary)
                             TextField("Target Amount", text: $targetAmountText)
                                 .keyboardType(.decimalPad)

@@ -43,7 +43,7 @@ struct TransactionsView: View {
                                 .tag(transaction.id)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                     if editMode == .inactive {
-                                        Button(role: .destructive) {
+                                        Button {
                                             transactionToDelete = transaction
                                             activeAlert = .archive
                                         } label: {
@@ -222,10 +222,12 @@ struct TransactionsView: View {
     }
     
     private func toggleSelectAll() {
-        if selectedTransactions.count == sortedFilteredTransactions.count {
-            selectedTransactions.removeAll()
-        } else {
-            selectedTransactions = Set(sortedFilteredTransactions.map { $0.id })
+        withAnimation(.snappy(duration: 0.2)) {
+            if selectedTransactions.count == sortedFilteredTransactions.count {
+                selectedTransactions.removeAll()
+            } else {
+                selectedTransactions = Set(sortedFilteredTransactions.map { $0.id })
+            }
         }
     }
 

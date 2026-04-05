@@ -40,7 +40,10 @@ final class HomeViewModel {
             
             totalBalance = totalIncome - totalExpenses
             expendableAmount = totalBalance - totalTransfers
-            savingsRate = totalIncome.isZero ? 0.0 : max(0.0, (totalIncome - totalExpenses).amount / totalIncome.amount).doubleValue
+            
+            let incomeAmount = NSDecimalNumber(decimal: totalIncome.amount).doubleValue
+            let expenseAmount = NSDecimalNumber(decimal: totalExpenses.amount).doubleValue
+            savingsRate = incomeAmount.isZero ? 0.0 : max(0.0, (incomeAmount - expenseAmount) / incomeAmount)
 
             recentTransactions = Array(allTxns.filter { !$0.isArchived }.prefix(5))
             weeklyChartData = buildWeeklyChart(from: allTxns)

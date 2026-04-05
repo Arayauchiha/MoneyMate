@@ -46,6 +46,7 @@ enum GoalType: String, Codable, CaseIterable, Identifiable {
     case savings
     case noSpend
     case budgetCap
+    case dailyLimit
 
     var id: String {
         rawValue
@@ -56,6 +57,7 @@ enum GoalType: String, Codable, CaseIterable, Identifiable {
         case .savings: "Savings goal"
         case .noSpend: "No-spend challenge"
         case .budgetCap: "Budget cap"
+        case .dailyLimit: "Daily spending limit"
         }
     }
 
@@ -64,6 +66,7 @@ enum GoalType: String, Codable, CaseIterable, Identifiable {
         case .savings: "Save a target amount by a deadline"
         case .noSpend: "Avoid spending in selected categories"
         case .budgetCap: "Keep monthly spending under a limit"
+        case .dailyLimit: "Keep your daily spend under a set amount"
         }
     }
 
@@ -72,6 +75,7 @@ enum GoalType: String, Codable, CaseIterable, Identifiable {
         case .savings: "banknote"
         case .noSpend: "nosign"
         case .budgetCap: "gauge.with.dots.needle.67percent"
+        case .dailyLimit: "calendar.day.timeline.left"
         }
     }
 }
