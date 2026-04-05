@@ -190,11 +190,23 @@ struct InsightsView: View {
     
     private var topCategoriesList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Top Categories")
-                .font(.headline)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .foregroundStyle(.secondary)
+            HStack {
+                Text("Top Categories")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if !insightsViewModel.categoryTotals.isEmpty {
+                    NavigationLink {
+                        AllCategoriesView(allTotals: insightsViewModel.categoryTotals, dateRange: insightsViewModel.selectedPeriod.dateRange)
+                    } label: {
+                        Text("See All")
+                            .font(.subheadline).bold()
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
             
             Divider()
                 .padding(.leading, 64)
@@ -250,7 +262,7 @@ struct InsightsView: View {
     }
     
     private var monthlyTrendChart: some View {
-        NavigationLink(destination: TrendDetailView(monthly: insightsViewModel.monthlyTrend, weekly: insightsViewModel.weeklyTrend)) {
+        NavigationLink(destination: TrendDetailView(daily: insightsViewModel.dailyTrend, weekly: insightsViewModel.weeklyTrend, monthly: insightsViewModel.monthlyTrend)) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
                     Text("Historical Trends")

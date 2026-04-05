@@ -58,17 +58,17 @@ final class Category {
 
 extension Category {
     @MainActor static let systemCategories: [Category] = [
-        Category(name: "Food & dining", iconName: "fork.knife", colorHex: "FF6B6B", isSystem: true),
-        Category(name: "Transport", iconName: "car.fill", colorHex: "4ECDC4", isSystem: true),
-        Category(name: "Shopping", iconName: "bag.fill", colorHex: "45B7D1", isSystem: true),
-        Category(name: "Housing", iconName: "house.fill", colorHex: "96CEB4", isSystem: true),
-        Category(name: "Health", iconName: "heart.fill", colorHex: "FFEAA7", isSystem: true),
-        Category(name: "Entertainment", iconName: "tv.fill", colorHex: "DDA0DD", isSystem: true),
-        Category(name: "Utilities", iconName: "bolt.fill", colorHex: "98D8C8", isSystem: true),
-        Category(name: "Education", iconName: "book.fill", colorHex: "F7DC6F", isSystem: true),
-        Category(name: "Travel", iconName: "airplane", colorHex: "82E0AA", isSystem: true),
-        Category(name: "Salary", iconName: "briefcase.fill", colorHex: "85C1E9", isSystem: true),
-        Category(name: "Freelance", iconName: "laptopcomputer", colorHex: "F8C471", isSystem: true),
-        Category(name: "Other", iconName: "ellipsis.circle.fill", colorHex: "BDC3C7", isSystem: true)
+        Category(name: "Food & dining", iconName: "fork.knife", colorHex: "FF4757", isSystem: true),
+        Category(name: "Transport", iconName: "car.fill", colorHex: "2ED573", isSystem: true),
+        Category(name: "Shopping", iconName: "bag.fill", colorHex: "1E90FF", isSystem: true),
+        Category(name: "Housing", iconName: "house.fill", colorHex: "70a1ff", isSystem: true),
+        Category(name: "Health", iconName: "heart.fill", colorHex: "FF6B6B", isSystem: true),
+        Category(name: "Entertainment", iconName: "tv.fill", colorHex: "A55EEA", isSystem: true),
+        Category(name: "Utilities", iconName: "bolt.fill", colorHex: "ECCC68", isSystem: true),
+        Category(name: "Education", iconName: "book.fill", colorHex: "FF7F50", isSystem: true),
+        Category(name: "Travel", iconName: "airplane", colorHex: "2bcbba", isSystem: true),
+        Category(name: "Salary", iconName: "briefcase.fill", colorHex: "20bf6b", isSystem: true),
+        Category(name: "Freelance", iconName: "laptopcomputer", colorHex: "f7b731", isSystem: true),
+        Category(name: "Miscellaneous", iconName: "ellipsis.circle.fill", colorHex: "BDC3C7", isSystem: true)
     ]
 }

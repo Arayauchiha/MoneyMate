@@ -93,9 +93,9 @@ enum GoalStatus {
 
     var color: Color {
         switch self {
-        case .onTrack: .green
+        case .onTrack: .blue
         case .atRisk: .orange
-        case .achieved: .blue
+        case .achieved: .green
         case .failed: .red
         }
     }
@@ -134,14 +134,14 @@ enum TimePeriod: String, CaseIterable, Identifiable {
         let today = Date()
         let start: Date = switch self {
         case .week:
-            calendar.date(byAdding: .day, value: -6, to: today)!
+            calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
         case .month:
-            calendar.date(byAdding: .month, value: -1, to: today)!
+            calendar.date(from: calendar.dateComponents([.year, .month], from: today))!
         case .threeMonths:
-            calendar.date(byAdding: .month, value: -3, to: today)!
+            calendar.date(byAdding: .month, value: -2, to: calendar.date(from: calendar.dateComponents([.year, .month], from: today))!)!
         case .year:
-            calendar.date(byAdding: .year, value: -1, to: today)!
+            calendar.date(from: calendar.dateComponents([.year], from: today))!
         }
-        return (start, today)
+        return (start, calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today)
     }
 }

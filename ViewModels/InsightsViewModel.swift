@@ -15,6 +15,7 @@ final class InsightsViewModel {
     var averagePerDay: Money = .zero
     var monthlyTrend: [TrendTotal] = []
     var weeklyTrend: [TrendTotal] = []
+    var dailyTrend: [TrendTotal] = []
     var daysInPeriod: Int = 1
 
     var isLoading: Bool = false
@@ -54,6 +55,7 @@ final class InsightsViewModel {
             weekComparison = buildWeekComparison(from: allTxns)
             monthlyTrend = buildMonthlyTrend(from: allTxns)
             weeklyTrend = buildWeeklyTrend(from: allTxns)
+            dailyTrend = buildDailyTrend(from: allTxns)
 
         } catch {
             self.error = error.localizedDescription
@@ -61,11 +63,12 @@ final class InsightsViewModel {
     }
 
     private func buildCategoryTotals(from transactions: [Transaction]) -> [CategoryTotal] {
-        let grouped = Dictionary(grouping: transactions, by: { $0.category?.id ?? UUID() })
+        let uncategorisedID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+        let grouped = Dictionary(grouping: transactions, by: { $0.category?.id ?? uncategorisedID })
         return grouped
             .map { _, txns -> CategoryTotal in
                 let total = txns.reduce(Money.zero) { $0 + $1.money }
-                let category = txns.first?.category
+                let category = txns.first { $0.category != nil }?.category
                 return CategoryTotal(category: category, total: total, transactionCount: txns.count)
             }
             .sorted { $0.total.amount > $1.total.amount }
@@ -97,7 +100,7 @@ final class InsightsViewModel {
     private func buildMonthlyTrend(from transactions: [Transaction]) -> [TrendTotal] {
         let calendar = Calendar.current
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM yy"
+        formatter.dateFormat = "MMM yyyy"
 
         let expenses = transactions.filter { $0.type == .expense }
         let grouped = Dictionary(
@@ -135,6 +138,28 @@ final class InsightsViewModel {
             .suffix(8)
             .map(\.self)
     }
+
+    private func buildDailyTrend(from transactions: [Transaction]) -> [TrendTotal] {
+        let calendar = Calendar.current
+        let today = Date()
+        let cutoff = calendar.date(byAdding: .day, value: -14, to: today)! // Last 14 days
+        let expenses = transactions.filter { $0.type == .expense && $0.date >= cutoff }
+        
+        let grouped = Dictionary(
+            grouping: expenses,
+            by: { calendar.startOfDay(for: $0.date) }
+        )
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMM"
+        
+        return grouped
+            .map { date, txns -> TrendTotal in
+                let total = txns.reduce(Money.zero) { $0 + $1.money }
+                return TrendTotal(label: formatter.string(from: date), total: total, date: date)
+            }
+            .sorted { $0.date < $1.date }
+    }
 }
 
 struct CategoryTotal: Identifiable {
@@ -144,7 +169,7 @@ struct CategoryTotal: Identifiable {
     let transactionCount: Int
 
     var categoryName: String {
-        category?.name ?? "Uncategorised"
+        category?.name ?? "Other"
     }
 
     var categoryIcon: String {

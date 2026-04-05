@@ -104,7 +104,23 @@ final class TransactionViewModel {
     }
 
     @MainActor
-    func delete(_ transaction: Transaction) {
+    func archive(_ transaction: Transaction) {
+        transaction.isArchived = true
+        guard let context = modelContext else { return }
+        save(context: context)
+        Task { await load() }
+    }
+
+    @MainActor
+    func restore(_ transaction: Transaction) {
+        transaction.isArchived = false
+        guard let context = modelContext else { return }
+        save(context: context)
+        Task { await load() }
+    }
+
+    @MainActor
+    func deletePermanently(_ transaction: Transaction) {
         guard let context = modelContext else { return }
         context.delete(transaction)
         save(context: context)
@@ -112,9 +128,9 @@ final class TransactionViewModel {
     }
 
     @MainActor
-    func delete(at offsets: IndexSet) {
+    func archive(at offsets: IndexSet) {
         let targets = offsets.map { filteredTransactions[$0] }
-        targets.forEach { delete($0) }
+        targets.forEach { archive($0) }
     }
 
     func applyFilters() {
@@ -146,6 +162,7 @@ final class TransactionViewModel {
             result = result.filter { $0.date < endOfDay }
         }
 
+        result = result.filter { !$0.isArchived }
         filteredTransactions = result
     }
 

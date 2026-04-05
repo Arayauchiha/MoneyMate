@@ -19,6 +19,7 @@ enum DetailResolution: String, CaseIterable, Identifiable {
 struct CategoryDetailView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
     let category: Category?
+    let isDateSummary: Bool
     
     @State private var currentStart: Date
     @State private var currentEnd: Date
@@ -29,13 +30,15 @@ struct CategoryDetailView: View {
     
     @Query private var transactions: [Transaction]
     
-    init(category: Category?, startDate: Date, endDate: Date) {
+    init(category: Category?, startDate: Date, endDate: Date, isDateSummary: Bool = false) {
         self.category = category
+        self.isDateSummary = isDateSummary
         self._currentStart = State(initialValue: startDate)
         self._currentEnd = State(initialValue: endDate)
         self._pickerDate = State(initialValue: startDate)
         
-        let days = Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 1
+        let components = Calendar.current.dateComponents([.day], from: startDate, to: endDate)
+        let days = components.day ?? 1
         if days == 0 { self._resolution = State(initialValue: .day) }
         else if days <= 7 { self._resolution = State(initialValue: .week) }
         else { self._resolution = State(initialValue: .month) }
@@ -51,7 +54,7 @@ struct CategoryDetailView: View {
             txn.type == .expense &&
             txn.date >= currentStart &&
             txn.date <= currentEnd &&
-            (category == nil || txn.category?.id == category?.id)
+            (isDateSummary ? true : (category == nil ? txn.category == nil : txn.category?.id == category?.id))
         }
     }
     
@@ -62,28 +65,37 @@ struct CategoryDetailView: View {
                 VStack(spacing: 20) {
                     HStack(spacing: 20) {
                         Circle()
-                            .fill((category?.color ?? .blue).gradient)
+                            .fill((isDateSummary ? .blue : (category?.color ?? .gray)).gradient)
                             .frame(width: 72, height: 72)
                             .overlay {
-                                Image(systemName: category?.iconName ?? resolution.icon)
+                                Image(systemName: isDateSummary ? resolution.icon : (category?.iconName ?? "questionmark.circle"))
                                     .font(.system(size: 32, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .shadow(color: (category?.color ?? .blue).opacity(0.3), radius: 10, x: 0, y: 5)
+                            .shadow(color: (isDateSummary ? .blue : (category?.color ?? .gray)).opacity(0.3), radius: 10, x: 0, y: 5)
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(category?.name ?? (resolution == .month ? "Monthly Breakdown" : resolution == .week ? "Weekly Breakdown" : "Daily Breakdown"))
+                            Text(isDateSummary ? (resolution == .month ? "Monthly Summary" : resolution == .week ? "Weekly Summary" : "Daily Summary") : (category?.name ?? "Other"))
                                 .font(.title)
                                 .fontWeight(.black)
+                                .textCase(nil)
                             
-                            HStack(spacing: 6) {
-                                Image(systemName: resolution.icon)
-                                    .font(.caption)
-                                Text(headerDateString)
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
+                            Button {
+                                isPeriodPickerPresented = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: resolution.icon)
+                                        .font(.caption)
+                                    Text(headerDateString)
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.blue.opacity(0.1), in: Capsule())
+                                .foregroundStyle(.blue)
                             }
-                            .foregroundStyle(.secondary)
+                            .buttonStyle(.plain)
                         }
                         Spacer()
                     }
@@ -135,23 +147,16 @@ struct CategoryDetailView: View {
                         )
                     } else {
                         ForEach(filteredTransactions) { txn in
-                            Button {
+                            TransactionCard(transaction: txn) {
                                 transactionViewModel.presentEdit(txn)
-                            } label: {
-                                TransactionRow(transaction: txn)
-                                    .padding()
-                                    .background(Color(uiColor: .secondarySystemGroupedBackground))
-                                    .cornerRadius(20)
-                                    .shadow(color: .black.opacity(0.02), radius: 5, x: 0, y: 2)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
             }
             .padding()
         }
-        .navigationTitle(category?.name ?? "Details")
+        .navigationTitle(isDateSummary ? "Spending Breakdown" : (category?.name ?? "Other"))
         .navigationBarTitleDisplayMode(.inline)
         .background(Color(uiColor: .systemGroupedBackground))
         .toolbar {
@@ -172,11 +177,13 @@ struct CategoryDetailView: View {
     }
     
     private var headerDateString: String {
+        let calendar = Calendar.current
         switch resolution {
         case .day:
             return currentStart.formatted(.dateTime.day().month().year())
         case .week:
-            return "\(currentStart.formatted(.dateTime.day().month())) - \(currentEnd.formatted(.dateTime.day().month()))"
+            let week = calendar.component(.weekOfYear, from: currentStart)
+            return "Week \(week) (\(currentStart.formatted(.dateTime.day().month())) - \(currentEnd.formatted(.dateTime.day().month())))"
         case .month:
             return currentStart.formatted(.dateTime.month(.wide).year())
         }
@@ -220,12 +227,21 @@ struct CategoryDetailView: View {
                 }
                 
                 Section("Jump to Date") {
-                    DatePicker("Target Date", selection: $pickerDate, displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .onChange(of: pickerDate) { _, newDate in
-                            resolution = .day // Explicitly switch to 'Day' view when a date is selected
-                            updatePeriod(from: newDate)
+                    VStack(alignment: .leading, spacing: 8) {
+                        if resolution == .week {
+                            let week = Calendar.current.component(.weekOfYear, from: pickerDate)
+                            Text("Selecting Week \(week)")
+                                .font(.caption).bold()
+                                .foregroundStyle(.blue)
                         }
+                        
+                        DatePicker("Target Date", selection: $pickerDate, displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .onChange(of: pickerDate) { _, newDate in
+                                // Keep the resolution user selected, just update the window
+                                updatePeriod(from: newDate)
+                            }
+                    }
                 }
             }
             .navigationTitle("Filter Options")

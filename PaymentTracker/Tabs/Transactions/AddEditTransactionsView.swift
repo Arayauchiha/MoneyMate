@@ -67,14 +67,17 @@ struct AddEditTransactionView: View {
                     DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
                     
                     Picker("Category", selection: $category) {
-                        Text("None").tag(Category?.none)
+                        Text("Uncategorised").tag(Category?.none)
+                        Divider()
                         ForEach(sortedCategories) { cat in
                             Text(cat.name).tag(Category?.some(cat))
                         }
+                        Divider()
+                        Text("+ Create New Category").tag(Category?.some(Category(name: "__create_new__", iconName: "", colorHex: "")))
                     }
                     
-                    if category?.name == "Other" {
-                        TextField("Custom Category Name", text: $customCategoryName)
+                    if category?.name == "__create_new__" {
+                        TextField("New Category Name", text: $customCategoryName)
                     }
                 }
                 
@@ -102,7 +105,7 @@ struct AddEditTransactionView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", role: .confirm) { save() }
-                        .disabled(amountText.isEmpty || (category?.name == "Other" && customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty))
+                        .disabled(amountText.isEmpty || (category?.name == "__create_new__" && customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty))
                 }
             }
             .onAppear {
@@ -122,12 +125,6 @@ struct AddEditTransactionView: View {
         date = existingTransaction.date
         note = existingTransaction.note
         selectedGoal = existingTransaction.linkedGoal
-        
-        if let catName = category?.name, catName != "Other", !categories.contains(where: { $0.id == category?.id && $0.isSystem }) {
-            // If the transaction uses a custom category, you could potentially show it.
-            // But since it's already an existing custom category, the Picker will just select it if it's in the list.
-            // Wait, the "Other" logic only applies to making a NEW custom category.
-        }
     }
 
     private func save() {
@@ -137,12 +134,14 @@ struct AddEditTransactionView: View {
         let money = Money(decimalAmount)
         
         var finalCategory = category
-        if category?.name == "Other", !customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty {
+        if category?.name == "__create_new__", !customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty {
             let cleanedName = customCategoryName.trimmingCharacters(in: .whitespaces)
             if let existing = categories.first(where: { $0.name.lowercased() == cleanedName.lowercased() }) {
                 finalCategory = existing
             } else {
-                let newCategory = Category(name: cleanedName, iconName: "star.fill", colorHex: "BDC3C7", isSystem: false)
+                let vibrantColors = ["FF4757", "2ED573", "1E90FF", "ff6b81", "ffa502", "3742fa", "A55EEA", "f7b731", "2bcbba"]
+                let randomColor = vibrantColors.randomElement() ?? "BDC3C7"
+                let newCategory = Category(name: cleanedName, iconName: "star.fill", colorHex: randomColor, isSystem: false)
                 modelContext.insert(newCategory)
                 finalCategory = newCategory
             }

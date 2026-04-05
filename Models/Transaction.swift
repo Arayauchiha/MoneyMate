@@ -7,6 +7,7 @@ final class Transaction: Identifiable {
     var type: TransactionType
     var date: Date
     var note: String
+    var isArchived: Bool = false
 
     private var amountRaw: String
 

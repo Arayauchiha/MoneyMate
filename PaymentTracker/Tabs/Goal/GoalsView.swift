@@ -8,68 +8,52 @@ struct GoalsView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if goalsViewModel.activeGoals.isEmpty && goalsViewModel.completedGoals.isEmpty {
-                    emptyStateView
-                } else {
-                    List {
-                        availableToSaveBanner
-                            .listRowInsets(EdgeInsets())
-                            .listRowBackground(Color.clear)
-                            .padding(.bottom, 8)
-
+            ScrollView {
+                VStack(spacing: 24) {
+                    availableToSaveBanner
+                    
+                    if goalsViewModel.activeGoals.isEmpty && 
+                       goalsViewModel.achievedGoals.isEmpty && 
+                       goalsViewModel.completedGoals.isEmpty {
+                        emptyStateView
+                    } else {
                         if !goalsViewModel.activeGoals.isEmpty {
-                            Section("Active Goals") {
-                                ForEach(goalsViewModel.activeGoals) { goal in
-                                    NavigationLink(value: goal) {
-                                        GoalCardRow(goal: goal, viewModel: goalsViewModel) {
-                                            goalToFund = goal
-                                        }
-                                    }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                        Button(role: .destructive) {
-                                            goalsViewModel.delete(goal)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
-                                    .swipeActions(edge: .leading) {
-                                        Button {
-                                            goalsViewModel.presentEdit(goal)
-                                        } label: {
-                                            Label("Edit", systemImage: "pencil")
-                                        }
-                                        .tint(.blue)
-                                    }
-                                }
+                            GoalSection(title: "Active Goals", goals: goalsViewModel.activeGoals, viewModel: goalsViewModel) { goal in
+                                goalToFund = goal
                             }
                         }
                         
+                        if !goalsViewModel.achievedGoals.isEmpty {
+                            GoalSection(title: "Completed Goals", goals: goalsViewModel.achievedGoals, viewModel: goalsViewModel, onFund: nil)
+                        }
+                        
                         if !goalsViewModel.completedGoals.isEmpty {
-                            Section("Completed / Expired") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Archive")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 4)
+                                
                                 ForEach(goalsViewModel.completedGoals) { goal in
                                     NavigationLink(value: goal) {
                                         GoalCardRow(goal: goal, viewModel: goalsViewModel, onFund: nil)
                                             .opacity(0.6)
+                                            .padding()
+                                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                                     }
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .destructive) {
-                                            goalsViewModel.delete(goal)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
-                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
                     }
-                    .listStyle(.insetGrouped)
-                    .navigationDestination(for: Goal.self) { targetGoal in
-                        GoalDetailView(goal: targetGoal)
-                    }
                 }
+                .padding()
             }
+            .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("Goals")
+            .navigationDestination(for: Goal.self) { targetGoal in
+                GoalDetailView(goal: targetGoal)
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -93,21 +77,32 @@ struct GoalsView: View {
     }
 
     private var availableToSaveBanner: some View {
-        VStack(spacing: 4) {
+        let money = goalsViewModel.availableToSave
+        return VStack(spacing: 8) {
             Text("Available to Save")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
-            Text(goalsViewModel.availableToSave.formatted)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(.green)
+            
+            Text(money.formatted)
+                .font(.system(size: 34, weight: .black, design: .rounded))
+                .foregroundStyle(money.isZero ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.green))
+            
+            if money.isZero {
+                Text("Capped at zero due to overspending.")
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(.red.opacity(0.1), in: Capsule())
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding()
+        .padding(32)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(uiColor: .systemBackground))
-                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground))
+                .shadow(color: Color.black.opacity(0.02), radius: 10, x: 0, y: 5)
         )
     }
     
@@ -116,25 +111,42 @@ struct GoalsView: View {
             Image(systemName: "target")
                 .font(.system(size: 64))
                 .foregroundStyle(.tertiary)
-            
-            Text("No Goals Yet")
-                .font(.title2)
-                .fontWeight(.bold)
-            
-            Text("Set up savings goals or spending challenges to stay on track.")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            
-            Button("Create a Goal") {
-                goalsViewModel.presentAdd()
-            }
-            .buttonStyle(.borderedProminent)
-            .padding(.top, 8)
+            Text("No Goals Yet").font(.title2).bold()
+            Button("Create a Goal") { goalsViewModel.presentAdd() }.buttonStyle(.borderedProminent)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(uiColor: .systemGroupedBackground))
+        .padding(.top, 60)
+    }
+}
+
+struct GoalSection: View {
+    let title: String
+    let goals: [Goal]
+    let viewModel: GoalsViewModel
+    var onFund: ((Goal) -> Void)?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+            
+            ForEach(goals) { goal in
+                NavigationLink(value: goal) {
+                    GoalCardRow(goal: goal, viewModel: viewModel) {
+                        onFund?(goal)
+                    }
+                    .padding()
+                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    Button { viewModel.presentEdit(goal) } label: { Label("Edit", systemImage: "pencil") }
+                    Button(role: .destructive) { viewModel.delete(goal) } label: { Label("Delete", systemImage: "trash") }
+                }
+            }
+        }
     }
 }
 
@@ -155,17 +167,18 @@ struct GoalCardRow: View {
                 
                 Spacer()
                 
-                Text(viewModel.status(for: goal).label)
+                let status = viewModel.status(for: goal)
+                Text(status.label)
                     .font(.caption)
                     .fontWeight(.bold)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(viewModel.status(for: goal).color.opacity(0.15))
-                    .foregroundStyle(viewModel.status(for: goal).color)
+                    .background(status.color.opacity(0.15))
+                    .foregroundStyle(status.color)
                     .clipShape(Capsule())
             }
             
-            if goal.type == .savings {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(viewModel.progressLabel(for: goal))
                         .font(.subheadline)
@@ -178,10 +191,8 @@ struct GoalCardRow: View {
                             onFund()
                         } label: {
                             Text("Fund")
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
+                                .font(.caption).bold()
+                                .padding(.horizontal, 12).padding(.vertical, 6)
                                 .background(Color.blue)
                                 .foregroundStyle(.white)
                                 .clipShape(Capsule())
@@ -189,34 +200,19 @@ struct GoalCardRow: View {
                         .buttonStyle(.plain)
                     }
                 }
-            } else {
-                Text(viewModel.progressLabel(for: goal))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                
+                ProgressView(value: viewModel.progressFraction(for: goal))
+                    .tint(viewModel.status(for: goal).color)
             }
-            
-            ProgressView(value: viewModel.progressFraction(for: goal))
-                .tint(viewModel.status(for: goal).color)
             
             HStack {
                 Text(goal.type.label)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
-                
                 Spacer()
-                
                 Text("\(goal.daysRemaining) days left")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(goal.daysRemaining < 3 ? .red : .secondary)
-            }
-        }
-        .padding(.vertical, 4)
-        .overlay {
-            if viewModel.status(for: goal) == .achieved && !goal.isExpired {
-                // simple visual override for gamified hit
-                Rectangle()
-                    .fill(Color.clear)
-                    .contentShape(Rectangle())
             }
         }
     }

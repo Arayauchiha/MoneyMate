@@ -2,33 +2,43 @@ import SwiftUI
 import Charts
 
 enum TrendUnit: String, CaseIterable, Identifiable {
-    case month = "Monthly"
+    case day = "Daily"
     case week = "Weekly"
+    case month = "Monthly"
     var id: String { self.rawValue }
     
     var descriptor: String {
-        self == .month ? "Show month-by-month historical data" : "Show week-by-week trends"
+        switch self {
+        case .day: return "Last 14 days of spending activity"
+        case .week: return "Week-by-week trends"
+        case .month: return "Month-by-month historical data"
+        }
     }
 }
 
 struct TrendDetailView: View {
-    let monthlyData: [TrendTotal]
+    let dailyData: [TrendTotal]
     let weeklyData: [TrendTotal]
+    let monthlyData: [TrendTotal]
     
     @State private var selectedUnit: TrendUnit = .month
     
-    init(monthly: [TrendTotal], weekly: [TrendTotal]) {
-        self.monthlyData = monthly
+    init(daily: [TrendTotal], weekly: [TrendTotal], monthly: [TrendTotal]) {
+        self.dailyData = daily
         self.weeklyData = weekly
+        self.monthlyData = monthly
     }
 
     var currentData: [TrendTotal] {
-        selectedUnit == .month ? monthlyData : weeklyData
+        switch selectedUnit {
+        case .day: return dailyData
+        case .week: return weeklyData
+        case .month: return monthlyData
+        }
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Native Sticky-style Header
             VStack(spacing: 12) {
                 Picker("Unit", selection: $selectedUnit) {
                     ForEach(TrendUnit.allCases) { unit in
@@ -44,7 +54,7 @@ struct TrendDetailView: View {
             }
             .padding(.vertical, 12)
             .background(Color(uiColor: .systemGroupedBackground))
-            .zIndex(1) // Ensure it stays on top during scroll if needed
+            .zIndex(1)
             
             List {
                 Section {
@@ -68,15 +78,14 @@ struct TrendDetailView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(currentData.reversed()) { trend in
-                            let start = startOf(trend: trend)
-                            let end = endOf(trend: trend, from: start)
+                            let (start, end) = rangeFor(trend: trend)
                             
-                            NavigationLink(destination: CategoryDetailView(category: nil, startDate: start, endDate: end)) {
+                            NavigationLink(destination: CategoryDetailView(category: nil, startDate: start, endDate: end, isDateSummary: true)) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(trend.label)
                                             .font(.headline)
-                                        Text(selectedUnit == .month ? "Month Summary" : "Week Summary")
+                                        Text(subLabel)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
@@ -95,21 +104,30 @@ struct TrendDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
     
-    private func startOf(trend: TrendTotal) -> Date {
-        let calendar = Calendar.current
-        if selectedUnit == .month {
-            return calendar.date(from: calendar.dateComponents([.year, .month], from: trend.date))!
-        } else {
-            return calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: trend.date))!
+    private var subLabel: String {
+        switch selectedUnit {
+        case .day: return "Day Summary"
+        case .week: return "Week Summary"
+        case .month: return "Month Summary"
         }
     }
     
-    private func endOf(trend: TrendTotal, from start: Date) -> Date {
+    private func rangeFor(trend: TrendTotal) -> (Date, Date) {
         let calendar = Calendar.current
-        if selectedUnit == .month {
-            return calendar.date(byAdding: DateComponents(month: 1, day: -1), to: start)!
-        } else {
-            return calendar.date(byAdding: DateComponents(day: 6), to: start)!
+        let start: Date
+        let end: Date
+        
+        switch selectedUnit {
+        case .day:
+            start = calendar.startOfDay(for: trend.date)
+            end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: start)!
+        case .week:
+            start = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: trend.date))!
+            end = calendar.date(byAdding: DateComponents(day: 6), to: start)!
+        case .month:
+            start = calendar.date(from: calendar.dateComponents([.year, .month], from: trend.date))!
+            end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: start)!
         }
+        return (start, end)
     }
 }

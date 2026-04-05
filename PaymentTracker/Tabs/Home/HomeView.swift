@@ -1,6 +1,4 @@
 import SwiftUI
-
-import SwiftUI
 import Charts
 
 struct HomeView: View {
@@ -56,7 +54,6 @@ struct HomeView: View {
         }
     }
     
-    // MARK: - Balance Card
     private var balanceCard: some View {
         VStack(spacing: 16) {
             Text("Total Balance")
@@ -67,10 +64,18 @@ struct HomeView: View {
                 .font(.system(size: 40, weight: .bold, design: .rounded))
             
             if homeViewModel.totalBalance.amount != homeViewModel.expendableAmount.amount {
-                Text("\(homeViewModel.expendableAmount.formatted) safe to spend after savings")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, -8)
+                let amounts = homeViewModel.expendableAmount
+                if amounts.amount >= 0 {
+                    Text("\(amounts.formatted) safe to spend after savings")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, -8)
+                } else {
+                    Text("Overspent by \(amounts.absolute.formatted) after savings goals")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .padding(.top, -8)
+                }
             }
             
             HStack(spacing: 40) {
@@ -105,11 +110,10 @@ struct HomeView: View {
         .background(
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
         )
     }
     
-    // MARK: - Weekly Chart
     private var weeklyChartSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Spending This Week")
@@ -134,12 +138,11 @@ struct HomeView: View {
             .background(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                    .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
             )
         }
     }
     
-    // MARK: - Recent Transactions
     private var recentTransactionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -170,16 +173,17 @@ struct HomeView: View {
                 )
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(homeViewModel.recentTransactions.enumerated()), id: \.element.id) { index, txn in
+                    let txns = homeViewModel.recentTransactions
+                    ForEach(0..<txns.count, id: \.self) { index in
+                        let txn = txns[index]
                         Button {
-                            // If they tap a transaction, pop the view or present edit sheet
                             transactionViewModel.presentEdit(txn)
                         } label: {
                             TransactionRow(transaction: txn)
                         }
                         .buttonStyle(.plain)
                         
-                        if index < homeViewModel.recentTransactions.count - 1 {
+                        if index < txns.count - 1 {
                             Divider()
                                 .padding(.leading, 56)
                         }
@@ -188,54 +192,11 @@ struct HomeView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                        .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
+                        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
                 )
             }
         }
     }
 }
 
-// MARK: - Transaction Row Component
-struct TransactionRow: View {
-    let transaction: Transaction
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Circle()
-                .fill(transaction.type.color.opacity(0.2))
-                .frame(width: 44, height: 44)
-                .overlay {
-                    Image(systemName: transaction.type.systemImage)
-                        .foregroundStyle(transaction.type.color)
-                        .font(.title3)
-                }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                if transaction.type == .transfer, let goal = transaction.linkedGoal {
-                    Text("Funded: \(goal.title)")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-                } else {
-                    Text(transaction.note.isEmpty ? transaction.category?.name ?? transaction.type.label : transaction.note)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-                }
-                
-                Text(transaction.date, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-            
-            Text(transaction.formattedAmount)
-                .font(.subheadline)
-                .fontWeight(.bold)
-                .foregroundStyle(transaction.type.color)
-        }
-        .padding(16)
-        .contentShape(Rectangle()) // makes the entire row tappable
-    }
-}
+

@@ -42,7 +42,7 @@ final class HomeViewModel {
             expendableAmount = totalBalance - totalTransfers
             savingsRate = totalIncome.isZero ? 0.0 : max(0.0, (totalIncome - totalExpenses).amount / totalIncome.amount).doubleValue
 
-            recentTransactions = Array(allTxns.prefix(5))
+            recentTransactions = Array(allTxns.filter { !$0.isArchived }.prefix(5))
             weeklyChartData = buildWeeklyChart(from: allTxns)
             topCategory = findTopCategory(from: allTxns)
 

@@ -6,35 +6,50 @@ struct FundGoalView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var amountText: String = ""
+    @State private var showErrorAlert: Bool = false
+    @State private var errorMessage: String = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    VStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "hand.holding.heart.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.blue.gradient)
+                        
                         Text(goal.title)
                             .font(.headline)
                         
-                        Text("Available to Save")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(goalsViewModel.availableToSave.formatted)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.green)
+                        VStack(spacing: 4) {
+                            Text("Available to Save")
+                                .font(.caption2)
+                                .textCase(.uppercase)
+                                .foregroundStyle(.secondary)
+                            Text(goalsViewModel.availableToSave.formatted)
+                                .font(.title)
+                                .fontWeight(.black)
+                                .foregroundStyle(.green)
+                        }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 16)
                 }
+                .listRowBackground(Color.clear)
                 
-                Section("Funding Amount") {
+                Section {
                     HStack {
                         Text(Locale.current.currencySymbol ?? "$")
+                            .font(.title3.bold())
                             .foregroundStyle(.secondary)
                         TextField("0.00", text: $amountText)
                             .keyboardType(.decimalPad)
-                            .font(.title3)
+                            .font(.title2.bold())
                     }
+                } header: {
+                    Text("Funding Amount")
+                } footer: {
+                    Text("This amount will be transferred from your available daily balance into this goal.")
                 }
             }
             .navigationTitle("Fund Goal")
@@ -45,18 +60,39 @@ struct FundGoalView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Transfer") {
-                        save()
+                        validateAndSave()
                     }
                     .disabled(amountText.isEmpty)
+                    .fontWeight(.bold)
                 }
+            }
+            .alert("Insufficient Funds", isPresented: $showErrorAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
             }
         }
     }
 
-    private func save() {
+    private func validateAndSave() {
         let separator = Locale.current.decimalSeparator ?? "."
         let cleaned = amountText.filter { $0.isNumber || String($0) == separator }
-        let amount = Money(Decimal(string: cleaned) ?? .zero)
+        let amountDecimal = Decimal(string: cleaned) ?? .zero
+        let amount = Money(amountDecimal)
+        
+        let available = goalsViewModel.availableToSave
+        
+        if amountDecimal <= 0 {
+            errorMessage = "Please enter a valid positive amount."
+            showErrorAlert = true
+            return
+        }
+        
+        if amountDecimal > available.amount {
+            errorMessage = "You only have \(available.formatted) available to save. Please enter a smaller amount."
+            showErrorAlert = true
+            return
+        }
         
         goalsViewModel.fund(goal: goal, amount: amount)
         dismiss()

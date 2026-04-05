@@ -38,8 +38,9 @@ struct TransactionsView: View {
                                         Button(role: .destructive) {
                                             transactionToDelete = transaction
                                         } label: {
-                                            Label("Delete", systemImage: "trash.fill")
+                                            Label("Archive", systemImage: "archivebox.fill")
                                         }
+                                        .tint(.orange)
                                         
                                         Button {
                                             transactionViewModel.presentEdit(transaction)
@@ -50,7 +51,7 @@ struct TransactionsView: View {
                                     }
                                     .contextMenu {
                                         Button { transactionViewModel.presentEdit(transaction) } label: { Label("Edit", systemImage: "pencil") }
-                                        Button(role: .destructive) { transactionToDelete = transaction } label: { Label("Delete", systemImage: "trash") }
+                                        Button(role: .destructive) { transactionToDelete = transaction } label: { Label("Archive", systemImage: "archivebox") }
                                     }
                                     .listRowSeparator(.hidden)
                                     .listRowBackground(Color.clear)
@@ -76,16 +77,18 @@ struct TransactionsView: View {
             }
             .navigationTitle("Transactions")
             .searchable(text: $tvm.searchQuery, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search notes or amounts")
-            .alert("Delete Transaction", isPresented: Binding(
+            .alert("Archive Transaction?", isPresented: Binding(
                 get: { transactionToDelete != nil },
                 set: { if !$0 { transactionToDelete = nil } }
             )) {
-                Button("Delete", role: .destructive) {
+                Button("Archive", role: .destructive) {
                     if let toDelete = transactionToDelete {
-                        transactionViewModel.delete(toDelete)
+                        transactionViewModel.archive(toDelete)
                     }
                 }
                 Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This will hide the transaction from your main list but keep its impact on your balance. You can restore it later from the Archive.")
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -97,11 +100,18 @@ struct TransactionsView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        transactionViewModel.isFilterSheetPresented = true
-                    } label: {
-                        Image(systemName: transactionViewModel.activeFilterCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                            .font(.headline)
+                    HStack(spacing: 8) {
+                        Button {
+                            transactionViewModel.isFilterSheetPresented = true
+                        } label: {
+                            Image(systemName: transactionViewModel.activeFilterCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                                .font(.headline)
+                        }
+                        
+                        NavigationLink(destination: ArchivedTransactionsView()) {
+                            Image(systemName: "archivebox")
+                                .font(.headline)
+                        }
                     }
                 }
             }
@@ -138,71 +148,4 @@ struct TransactionsView: View {
     }
 }
 
-struct TransactionCard: View {
-    @Environment(\.colorScheme) private var colorScheme
-    let transaction: Transaction
-    let action: () -> Void
-    @State private var isPressed = false
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Circle()
-                .fill(transaction.type.color.gradient)
-                .frame(width: 48, height: 48)
-                .overlay {
-                    Image(systemName: transaction.type.systemImage)
-                        .foregroundStyle(.white)
-                        .font(.headline)
-                }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                if transaction.type == .transfer, let goal = transaction.linkedGoal {
-                    Text("Funded: \(goal.title)")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                } else {
-                    Text(transaction.note.isEmpty ? transaction.category?.name ?? transaction.type.label : transaction.note)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                }
-                
-                if let category = transaction.category {
-                    let tagColor = category.color
-                    Text(category.name)
-                        .font(.caption2)
-                        .fontWeight(.black)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(tagColor.opacity(0.12), in: Capsule())
-                        .foregroundStyle(colorScheme == .light ? tagColor.opacity(0.9) : tagColor)
-                        .colorMultiply(colorScheme == .light ? Color(white: 0.6) : .white)
-                }
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(transaction.formattedAmount)
-                    .font(.headline)
-                    .bold()
-                    .foregroundStyle(transaction.type == .expense ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.green))
-                Text(transaction.date.formatted(.dateTime.hour().minute()))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(isPressed ? 0.01 : 0.03), radius: isPressed ? 2 : 10, x: 0, y: isPressed ? 1 : 5)
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .onTapGesture {
-            action()
-        }
-        .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
-    }
-}
+

@@ -5,6 +5,7 @@ import SwiftUI
 final class GoalsViewModel {
     var goals: [Goal] = []
     var activeGoals: [Goal] = []
+    var achievedGoals: [Goal] = []
     var completedGoals: [Goal] = []
 
     var goalToEdit: Goal?
@@ -118,7 +119,8 @@ final class GoalsViewModel {
         let income = allTransactions.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
         let expenses = allTransactions.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
         let transferred = allTransactions.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        return Money(income - expenses - transferred)
+        let diff = income - expenses - transferred
+        return Money(max(0, diff))
     }
 
     private func evaluateGoals() {
@@ -202,8 +204,20 @@ final class GoalsViewModel {
     }
 
     private func partitionGoals() {
-        activeGoals = goals.filter { $0.isActive && !$0.isExpired }
-        completedGoals = goals.filter { !$0.isActive || $0.isExpired }
+        // Active: Not expired AND not reached target
+        activeGoals = goals.filter { goal in
+            goal.isActive && !goal.isExpired && goal.status(currentAmount: currentAmount(for: goal)) != .achieved
+        }
+        
+        // Achieved: Reached target but not expired
+        achievedGoals = goals.filter { goal in
+            goal.status(currentAmount: currentAmount(for: goal)) == .achieved && !goal.isExpired
+        }
+        
+        // Completed/Expired: Actually expired or manually deactivated
+        completedGoals = goals.filter { goal in
+            goal.isExpired || !goal.isActive
+        }
     }
 
     private func save(context: ModelContext) {
