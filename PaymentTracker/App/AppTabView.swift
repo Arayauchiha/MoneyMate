@@ -23,6 +23,8 @@ struct AppTabView: View {
                 InsightsView()
             }
         }
+        .toolbar(appState.isTabBarHidden ? .hidden : .visible, for: .tabBar)
+        .animation(.default, value: appState.isTabBarHidden)
 
         .sheet(isPresented: $appState.isAddTransactionPresented) {
             AddEditTransactionView(mode: .add)

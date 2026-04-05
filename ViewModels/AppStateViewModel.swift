@@ -11,6 +11,7 @@ enum AppTab: String, Hashable, CaseIterable {
 @Observable
 final class AppStateViewModel {
     var selectedTab: AppTab = .home
+    var isTabBarHidden: Bool = false
 
     var isAddTransactionPresented: Bool = false
 

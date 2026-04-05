@@ -3,6 +3,7 @@ import SwiftUI
 struct GoalsView: View {
     @Environment(GoalsViewModel.self) private var goalsViewModel
     @Environment(AppStateViewModel.self) private var appStateViewModel
+    @Environment(TransactionViewModel.self) private var transactionViewModel
 
     @State private var goalToFund: Goal?
 
@@ -51,6 +52,16 @@ struct GoalsView: View {
             }
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("Goals")
+            .task {
+                await goalsViewModel.load()
+            }
+            .onAppear {
+                // Double check refresh on appear
+                Task { await goalsViewModel.load() }
+            }
+            .onChange(of: transactionViewModel.dataVersion) { _, _ in
+                Task { await goalsViewModel.load() }
+            }
             .navigationDestination(for: Goal.self) { targetGoal in
                 GoalDetailView(goal: targetGoal)
             }

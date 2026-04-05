@@ -108,7 +108,21 @@ final class TransactionViewModel {
         transaction.isArchived = true
         guard let context = modelContext else { return }
         save(context: context)
-        Task { await load() }
+        Task { @MainActor in
+            await load()
+        }
+    }
+
+    @MainActor
+    func archiveMultiple(_ transactions: [Transaction]) {
+        guard let context = modelContext else { return }
+        for txn in transactions {
+            txn.isArchived = true
+        }
+        save(context: context)
+        Task { @MainActor in
+            await load()
+        }
     }
 
     @MainActor
@@ -116,15 +130,51 @@ final class TransactionViewModel {
         transaction.isArchived = false
         guard let context = modelContext else { return }
         save(context: context)
-        Task { await load() }
+        Task { @MainActor in
+            await load()
+        }
+    }
+
+    @MainActor
+    func restoreMultiple(_ transactions: [Transaction]) {
+        guard let context = modelContext else { return }
+        for txn in transactions {
+            txn.isArchived = false
+        }
+        save(context: context)
+        Task { @MainActor in
+            await load()
+        }
     }
 
     @MainActor
     func deletePermanently(_ transaction: Transaction) {
         guard let context = modelContext else { return }
+        // Remove from local arrays first to prevent UI access during deletion
+        allTransactions.removeAll { $0.id == transaction.id }
+        applyFilters()
+        
         context.delete(transaction)
         save(context: context)
-        Task { await load() }
+        Task { @MainActor in
+            await load()
+        }
+    }
+
+    @MainActor
+    func deleteMultiplePermanently(_ transactions: [Transaction]) {
+        guard let context = modelContext else { return }
+        let ids = Set(transactions.map { $0.id })
+        allTransactions.removeAll { ids.contains($0.id) }
+        applyFilters()
+
+        for txn in transactions {
+            context.delete(txn)
+        }
+        save(context: context)
+        Task { @MainActor in
+            await load()
+        }
     }
 
     @MainActor
