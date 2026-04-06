@@ -135,6 +135,12 @@ final class GoalsViewModel {
         return Money(max(0, diff))
     }
 
+    var totalGoalFunding: Money {
+        let active = activeTransactions
+        let transferred = active.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        return Money(transferred)
+    }
+
     var isOverspent: Bool {
         let active = activeTransactions
         let income = active.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }

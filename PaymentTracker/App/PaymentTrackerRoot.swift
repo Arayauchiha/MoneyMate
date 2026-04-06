@@ -44,6 +44,7 @@ struct PaymentTrackerRoot: View {
                     }
                 }
         }
+        .preferredColorScheme(appStateViewModel.appearance.colorScheme)
         .task {
             appStateViewModel.configure(context: modelContext) // Configure AppState first
             homeViewModel.configure(context: modelContext)

@@ -7,6 +7,7 @@ struct GoalsView: View {
 
     @State private var goalToFund: Goal?
     @State private var goalToDelete: Goal?
+    @State private var detailToNavigate: InsightDetailType?
 
     var body: some View {
         NavigationStack {
@@ -51,6 +52,10 @@ struct GoalsView: View {
             .navigationDestination(for: Goal.self) { targetGoal in
                 GoalDetailView(goal: targetGoal)
             }
+            .navigationDestination(item: $detailToNavigate) { type in
+                let (start, end) = TimePeriod.month.dateRange
+                InsightsDetailView(type: type, startDate: start, endDate: end)
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -87,40 +92,70 @@ struct GoalsView: View {
     }
 
     private var availableToSaveBanner: some View {
-        let money = goalsViewModel.availableToSave
-        return VStack(spacing: 8) {
-            Text("Available to Save")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            
-            Text("\(appStateViewModel.userCurrency)\(money.formattedPlain)")
-                .font(.system(size: 34, weight: .black, design: .rounded))
-                .foregroundStyle(money.isZero ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.green))
-            
-            if goalsViewModel.isOverspent {
-                Text("Capped at zero due to overspending.")
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(.red.opacity(0.1), in: Capsule())
-            } else if goalsViewModel.hasNoTransactions {
-                Text("Add income to start saving.")
-                    .font(.caption2)
+        TabView {
+            // Card 1: Available to Save
+            VStack(spacing: 8) {
+                Text("Available to Save")
+                    .font(.caption)
+                    .fontWeight(.bold)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(.secondary.opacity(0.1), in: Capsule())
+                    .textCase(.uppercase)
+                
+                let money = goalsViewModel.availableToSave
+                Text("\(appStateViewModel.userCurrency)\(money.formattedPlain)")
+                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .foregroundStyle(money.isZero ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.green))
+                
+                if goalsViewModel.isOverspent {
+                    Text("Capped at zero due to overspending.")
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                } else {
+                    Text("Ready for your next goal")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
+            .frame(maxWidth: .infinity)
+            .padding(24)
+            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+            .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 5)
+            .padding(.horizontal, 2)
+            
+            // Card 2: Funded to Goals
+            Button {
+                detailToNavigate = .fundedToGoals
+            } label: {
+                VStack(spacing: 8) {
+                    Text("Total Goal Funding")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    
+                    let funded = goalsViewModel.totalGoalFunding
+                    Text("\(appStateViewModel.userCurrency)\(funded.formattedPlain)")
+                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .foregroundStyle(Color.blue)
+                    
+                    HStack(spacing: 4) {
+                        Text("View Allocation Detail")
+                        Image(systemName: "chevron.right")
+                    }
+                    .font(.caption2).bold()
+                    .foregroundStyle(.blue)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(24)
+                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 5)
+                .padding(.horizontal, 2)
+            }
+            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity)
-        .padding(32)
-        .background(
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 6)
-        )
+        .frame(height: 180)
+        .tabViewStyle(.page(indexDisplayMode: .always))
+        .indexViewStyle(.page(backgroundDisplayMode: .always))
     }
     
     private var emptyStateView: some View {

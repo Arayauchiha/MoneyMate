@@ -38,6 +38,19 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Picker("Theme", selection: $appState.appearance) {
+                        ForEach(AppAppearance.allCases) { appearance in
+                            Text(appearance.label).tag(appearance)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("Choose between light, dark, or system-synced visual modes.")
+                }
+
+                Section {
                     NavigationLink {
                         UserManualView()
                     } label: {
@@ -192,6 +205,7 @@ struct SettingsView: View {
                     .presentationDetents([.medium, .large])
             }
         }
+        .preferredColorScheme(appStateViewModel.appearance.colorScheme)
     }
 
     private func performHardReset() {

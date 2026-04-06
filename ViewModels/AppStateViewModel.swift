@@ -9,11 +9,32 @@ enum AppTab: String, Hashable, CaseIterable {
     case insights
 }
 
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system = "System"
+    case light = "Light"
+    case dark = "Dark"
+    
+    var id: String { self.rawValue }
+    var label: String { self.rawValue }
+    
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
 @Observable @MainActor
 final class AppStateViewModel {
     // Persistent Preferences
     @ObservationIgnored @AppStorage("user_name") var userName: String = "User"
     @ObservationIgnored @AppStorage("is_biometrics_enabled") var isBiometricsEnabled: Bool = false
+    
+    var appearance: AppAppearance {
+        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: "app_appearance") }
+    }
     
     var isDailyReminderEnabled: Bool {
         didSet { UserDefaults.standard.set(isDailyReminderEnabled, forKey: "is_daily_reminder_enabled") }
@@ -59,6 +80,8 @@ final class AppStateViewModel {
 
     init() {
         self.userCurrency = UserDefaults.standard.string(forKey: "user_currency") ?? "₹"
+        let savedAppearance = UserDefaults.standard.string(forKey: "app_appearance") ?? AppAppearance.system.rawValue
+        self.appearance = AppAppearance(rawValue: savedAppearance) ?? .system
         self.isDailyReminderEnabled = UserDefaults.standard.bool(forKey: "is_daily_reminder_enabled")
         self.isGoalAlertsEnabled = UserDefaults.standard.object(forKey: "is_goal_alerts_enabled") as? Bool ?? true
         self.dailyReminderTimeRaw = UserDefaults.standard.double(forKey: "daily_reminder_time_raw")
