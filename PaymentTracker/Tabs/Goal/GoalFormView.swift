@@ -60,7 +60,7 @@ struct GoalFormView: View {
                         HStack {
                             Text(appStateViewModel.userCurrency)
                                 .foregroundStyle(.secondary)
-                            TextField("Target Amount", text: $targetAmountText)
+                            TextField(type == .dailyLimit ? "Daily Limit" : "Target Amount", text: $targetAmountText)
                                 .keyboardType(.decimalPad)
                         }
                     }
@@ -73,7 +73,7 @@ struct GoalFormView: View {
                     DatePicker("Deadline", selection: $deadline, in: startDate..., displayedComponents: .date)
                 }
                 
-                if type == .budgetCap || type == .noSpend {
+                if type == .budgetCap || type == .noSpend || type == .dailyLimit {
                     Section {
                         if categories.isEmpty {
                             Text("No categories available")

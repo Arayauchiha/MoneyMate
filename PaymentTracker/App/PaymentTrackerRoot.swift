@@ -45,11 +45,20 @@ struct PaymentTrackerRoot: View {
                 }
         }
         .task {
+            appStateViewModel.configure(context: modelContext) // Configure AppState first
             homeViewModel.configure(context: modelContext)
             transactionViewModel.configure(context: modelContext)
-            goalsViewModel.configure(context: modelContext)
+            goalsViewModel.configure(context: modelContext, appState: appStateViewModel)
             insightsViewModel.configure(context: modelContext)
-            appStateViewModel.configure(context: modelContext)
+            
+            // Maintenance
+            transactionViewModel.cleanupOldArchives()
+            
+            // Notification Permissions & Scheduling
+            NotificationManager.shared.requestPermission()
+            if appStateViewModel.isDailyReminderEnabled {
+                NotificationManager.shared.scheduleDailyReminder(at: appStateViewModel.dailyReminderTime)
+            }
             
             // Initial auth if enabled
             if appStateViewModel.isBiometricsEnabled {

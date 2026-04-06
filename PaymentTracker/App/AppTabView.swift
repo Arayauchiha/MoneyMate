@@ -3,6 +3,7 @@ import SwiftData
 
 struct AppTabView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
+    @Environment(TransactionViewModel.self) private var transactionViewModel
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -73,6 +74,14 @@ struct AppTabView: View {
         }
         .sheet(isPresented: $appState.isAddTransactionPresented) {
             AddEditTransactionView(mode: .add)
+        }
+        .sheet(isPresented: .init(
+            get: { transactionViewModel.isAddEditSheetPresented },
+            set: { transactionViewModel.isAddEditSheetPresented = $0 }
+        )) {
+            AddEditTransactionView(
+                mode: transactionViewModel.transactionToEdit.map { .edit($0) } ?? .add
+            )
         }
         .sheet(isPresented: $appState.isSettingsPresented) {
             SettingsView()

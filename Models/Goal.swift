@@ -12,6 +12,9 @@ final class Goal: Identifiable {
     var currentStreak: Int
     var longestStreak: Int
     var lastEvaluatedDate: Date?
+    var hasNotified80: Bool = false
+    var hasNotified90: Bool = false
+    var hasNotified100: Bool = false
 
     private var targetAmountRaw: String
     private var blockedCategoryIDsRaw: String
@@ -39,6 +42,9 @@ final class Goal: Identifiable {
         self.currentStreak = 0
         self.longestStreak = 0
         self.lastEvaluatedDate = nil
+        self.hasNotified80 = false
+        self.hasNotified90 = false
+        self.hasNotified100 = false
         self.blockedCategoryIDsRaw = blockedCategories
             .map(\.id.uuidString)
             .joined(separator: ",")

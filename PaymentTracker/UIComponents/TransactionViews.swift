@@ -10,7 +10,9 @@ struct TransactionCard: View {
     @State private var isPressed = false
     
     var body: some View {
-        HStack(spacing: 16) {
+        guard transaction.modelContext != nil else { return AnyView(EmptyView()) }
+        return AnyView(
+            HStack(spacing: 16) {
             // Modern Glassmorphic Icon
             ZStack {
                 Circle()
@@ -73,6 +75,7 @@ struct TransactionCard: View {
         .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})
+        )
     }
 }
 
@@ -81,7 +84,9 @@ struct TransactionRow: View {
     let transaction: Transaction
     
     var body: some View {
-        HStack(spacing: 16) {
+        guard transaction.modelContext != nil else { return AnyView(EmptyView()) }
+        return AnyView(
+            HStack(spacing: 16) {
             ZStack {
                 Circle()
                     .fill(transaction.type.color.opacity(0.1))
@@ -118,5 +123,6 @@ struct TransactionRow: View {
         }
         .padding(16)
         .contentShape(Rectangle())
+        )
     }
 }

@@ -66,7 +66,7 @@ struct FundGoalView: View {
                     .fontWeight(.bold)
                 }
             }
-            .alert("Insufficient Funds", isPresented: $showErrorAlert) {
+            .alert("Transfer Failed", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
@@ -84,6 +84,15 @@ struct FundGoalView: View {
         
         if amountDecimal <= 0 {
             errorMessage = "Please enter a valid positive amount."
+            showErrorAlert = true
+            return
+        }
+        
+        let current = goalsViewModel.currentAmount(for: goal).amount
+        let needed = max(0, goal.targetAmount.amount - current)
+        
+        if amountDecimal > needed {
+            errorMessage = "You only need \(Money(needed).formatted) more to achieve this goal. Please adjust your amount."
             showErrorAlert = true
             return
         }

@@ -13,6 +13,9 @@ struct SettingsView: View {
     @State private var exportFile: ExportFile?
     @State private var isExporting: Bool = false
     @State private var isResetAlertPresented: Bool = false
+    @State private var isReminderConfirmationPresented: Bool = false
+    @State private var hasModifiedReminders: Bool = false
+    @State private var didDismissWithDone: Bool = false
     
     let currencies = ["₹", "$", "€", "£", "¥"]
 
@@ -62,6 +65,52 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    if !appState.isNotificationAuthorized {
+                        HStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Notifications Disabled")
+                                    .font(.subheadline.bold())
+                                Text("Enable them in System Settings to receive alerts.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    
+                    Toggle(isOn: $appState.isDailyReminderEnabled) {
+                        Label("Daily Log Reminder", systemImage: "bell.badge")
+                    }
+                    .onChange(of: appState.isDailyReminderEnabled) { _, _ in
+                        hasModifiedReminders = true
+                    }
+                    
+                    if appState.isDailyReminderEnabled {
+                        DatePicker("Reminder Time", selection: $appState.dailyReminderTime, displayedComponents: .hourAndMinute)
+                            .onChange(of: appState.dailyReminderTime) { _, _ in
+                                hasModifiedReminders = true
+                            }
+                    }
+                    
+                    Toggle(isOn: $appState.isGoalAlertsEnabled) {
+                        Label("Goal & Budget Alerts", systemImage: "target")
+                    }
+                    
+                    Button {
+                        NotificationManager.shared.sendThresholdAlert(for: .budget80("Demo Category"))
+                    } label: {
+                        Label("Test Notification", systemImage: "bell.fill")
+                            .foregroundStyle(.blue)
+                    }
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text("Stay on track with daily reminders and instant alerts for goal milestones and budget warnings.")
+                }
+
+                Section {
                     Toggle("Include Archived Transactions", isOn: $includeArchived)
                     
                     Button {
@@ -107,8 +156,28 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }.fontWeight(.bold)
+                    Button("Done") {
+                        if hasModifiedReminders {
+                            if appStateViewModel.isDailyReminderEnabled {
+                                NotificationManager.shared.scheduleDailyReminder(at: appStateViewModel.dailyReminderTime)
+                                // Show confirmation and then dismiss in the alert closure
+                                isReminderConfirmationPresented = true
+                            } else {
+                                NotificationManager.shared.cancelDailyReminder()
+                                dismiss()
+                            }
+                        } else {
+                            dismiss()
+                        }
+                    }.fontWeight(.bold)
                 }
+            }
+            .alert("Reminder Scheduled", isPresented: $isReminderConfirmationPresented) {
+                Button("Got it!", role: .cancel) { 
+                    dismiss()
+                }
+            } message: {
+                Text("Your daily log reminder has been set for \(appStateViewModel.dailyReminderTime.formatted(date: .omitted, time: .shortened)).")
             }
             .alert("Are you absolutely sure?", isPresented: $isResetAlertPresented) {
                 Button("Delete All Data", role: .destructive) {

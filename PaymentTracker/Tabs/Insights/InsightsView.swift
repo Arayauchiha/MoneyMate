@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import Charts
 
 struct InsightsView: View {
@@ -6,6 +7,7 @@ struct InsightsView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(TransactionViewModel.self) private var transactionViewModel
 
+    @Query private var allTransactions: [Transaction]
     @State private var selectedPieAmount: Decimal?
     @State private var selectedMonth: String?
 
@@ -38,7 +40,7 @@ struct InsightsView: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .task { await insightsViewModel.load() }
             .refreshable { await insightsViewModel.load() }
-            .onChange(of: transactionViewModel.dataVersion) { _, _ in
+            .onChange(of: allTransactions) { _, _ in
                 Task { await insightsViewModel.load() }
             }
         }

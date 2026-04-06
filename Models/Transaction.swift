@@ -9,6 +9,7 @@ final class Transaction: Identifiable {
     var title: String = ""
     var note: String = ""
     var isArchived: Bool = false
+    var archivedDate: Date? = nil
 
     private var amountRaw: String
 

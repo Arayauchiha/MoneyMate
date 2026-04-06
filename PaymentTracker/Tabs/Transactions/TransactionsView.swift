@@ -5,6 +5,7 @@ struct TransactionsView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
     @Environment(AppStateViewModel.self) private var appStateViewModel
     
+    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @State private var transactionToDelete: Transaction?
     @State private var selectedTransactions: Set<Transaction.ID> = []
     @State private var editMode: EditMode = .inactive
@@ -55,7 +56,8 @@ struct TransactionsView: View {
                                 .contextMenu {
                                     if editMode == .inactive {
                                         Button { transactionViewModel.presentEdit(transaction) } label: { Label("Edit", systemImage: "pencil") }
-                                        Button(role: .destructive) { transactionToDelete = transaction; activeAlert = .archive } label: { Label("Archive", systemImage: "archivebox") }
+                                        Button { transactionToDelete = transaction; activeAlert = .archive } label: { Label("Archive", systemImage: "archivebox") }
+                                        Button(role: .destructive) { transactionToDelete = transaction; activeAlert = .delete } label: { Label("Delete Forever", systemImage: "trash") }
                                     }
                                 }
                                 .listRowSeparator(.hidden)
@@ -177,20 +179,18 @@ struct TransactionsView: View {
             }
             .environment(\.editMode, $editMode)
             .sheet(isPresented: .init(
-                get: { transactionViewModel.isAddEditSheetPresented },
-                set: { transactionViewModel.isAddEditSheetPresented = $0 }
-            )) {
-                AddEditTransactionView(
-                    mode: transactionViewModel.transactionToEdit.map { .edit($0) } ?? .add
-                )
-            }
-            .sheet(isPresented: .init(
                 get: { transactionViewModel.isFilterSheetPresented },
                 set: { transactionViewModel.isFilterSheetPresented = $0 }
             )) {
                 TransactionFilterView()
             }
             .toolbar(appStateViewModel.isTabBarHidden ? .hidden : .visible, for: .tabBar)
+            .onAppear {
+                Task { await transactionViewModel.load() }
+            }
+            .onChange(of: allTransactions) { _, _ in
+                Task { await transactionViewModel.load() }
+            }
         }
     }
     

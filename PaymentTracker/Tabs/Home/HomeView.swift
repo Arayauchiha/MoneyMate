@@ -81,6 +81,9 @@ struct HomeView: View {
             .onAppear {
                 homeViewModel.refresh()
             }
+            .refreshable {
+                homeViewModel.refresh()
+            }
             .onChange(of: allTransactions) { _, newValue in
                 homeViewModel.refresh()
             }

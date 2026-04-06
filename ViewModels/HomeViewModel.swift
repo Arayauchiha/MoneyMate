@@ -32,11 +32,13 @@ final class HomeViewModel {
         do {
             let allTxns = try context.fetch(FetchDescriptor<Transaction>(
                 sortBy: [SortDescriptor(\.date, order: .reverse)]
-            ))
+            )).filter { $0.modelContext != nil }
+            
+            let activeTxns = allTxns.filter { !$0.isArchived }
 
-            totalIncome = allTxns.filter { $0.type == .income }.reduce(.zero) { $0 + $1.money }
-            totalExpenses = allTxns.filter { $0.type == .expense }.reduce(.zero) { $0 + $1.money }
-            let totalTransfers = allTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
+            totalIncome = activeTxns.filter { $0.type == .income }.reduce(.zero) { $0 + $1.money }
+            totalExpenses = activeTxns.filter { $0.type == .expense }.reduce(.zero) { $0 + $1.money }
+            let totalTransfers = activeTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
             
             totalBalance = totalIncome - totalExpenses
             expendableAmount = totalBalance - totalTransfers
@@ -45,9 +47,9 @@ final class HomeViewModel {
             let expenseAmount = NSDecimalNumber(decimal: totalExpenses.amount).doubleValue
             savingsRate = incomeAmount.isZero ? 0.0 : max(0.0, (incomeAmount - expenseAmount) / incomeAmount)
 
-            recentTransactions = Array(allTxns.filter { !$0.isArchived }.prefix(5))
-            weeklyChartData = buildWeeklyChart(from: allTxns)
-            topCategory = findTopCategory(from: allTxns)
+            recentTransactions = Array(activeTxns.prefix(5))
+            weeklyChartData = buildWeeklyChart(from: activeTxns)
+            topCategory = findTopCategory(from: activeTxns)
 
         } catch {
             self.error = error.localizedDescription

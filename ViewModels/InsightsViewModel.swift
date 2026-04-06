@@ -38,24 +38,25 @@ final class InsightsViewModel {
             let descriptor = FetchDescriptor<Transaction>(
                 sortBy: [SortDescriptor(\.date, order: .reverse)]
             )
-            let allTxns = try modelContext.fetch(descriptor)
+            let allTxns = try modelContext.fetch(descriptor).filter { $0.modelContext != nil }
+            let activeTxns = allTxns.filter { !$0.isArchived }
 
             let (start, end) = selectedPeriod.dateRange
-            let periodTxns = allTxns.filter { $0.date >= start && $0.date <= end && $0.type == .expense }
+            let periodTxns = activeTxns.filter { $0.date >= start && $0.date <= end && $0.type == .expense }
 
             daysInPeriod = max(1, Calendar.current.dateComponents([.day], from: start, to: end).day ?? 1)
             categoryTotals = buildCategoryTotals(from: periodTxns)
             topCategory = categoryTotals.first
             totalForPeriod = periodTxns.reduce(.zero) { $0 + $1.money }
-            totalFundedToGoals = allTxns
+            totalFundedToGoals = activeTxns
                 .filter { $0.date >= start && $0.date <= end && $0.type == .transfer && $0.linkedGoal != nil }
                 .reduce(.zero) { $0 + $1.money }
             
             averagePerDay = computeAveragePerDay(total: totalForPeriod, from: start, to: end)
-            weekComparison = buildWeekComparison(from: allTxns)
-            monthlyTrend = buildMonthlyTrend(from: allTxns)
-            weeklyTrend = buildWeeklyTrend(from: allTxns)
-            dailyTrend = buildDailyTrend(from: allTxns)
+            weekComparison = buildWeekComparison(from: activeTxns)
+            monthlyTrend = buildMonthlyTrend(from: activeTxns)
+            weeklyTrend = buildWeeklyTrend(from: activeTxns)
+            dailyTrend = buildDailyTrend(from: activeTxns)
 
         } catch {
             self.error = error.localizedDescription

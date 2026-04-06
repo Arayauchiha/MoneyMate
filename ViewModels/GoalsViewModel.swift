@@ -15,10 +15,12 @@ final class GoalsViewModel {
     var error: String?
 
     private var modelContext: ModelContext?
+    private var appState: AppStateViewModel?
     private var allTransactions: [Transaction] = []
-
-    func configure(context: ModelContext) {
+    
+    func configure(context: ModelContext, appState: AppStateViewModel) {
         modelContext = context
+        self.appState = appState
         Task { await load() }
     }
 
@@ -41,6 +43,9 @@ final class GoalsViewModel {
 
             evaluateGoals()
             partitionGoals()
+            
+            // Persist evaluation results (like notification flags)
+            save(context: context)
 
         } catch {
             self.error = error.localizedDescription
@@ -117,18 +122,24 @@ final class GoalsViewModel {
         Task { await load() }
     }
 
+    private var activeTransactions: [Transaction] {
+        allTransactions.filter { $0.modelContext != nil && !$0.isArchived }
+    }
+
     var availableToSave: Money {
-        let income = allTransactions.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let expenses = allTransactions.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let transferred = allTransactions.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let active = activeTransactions
+        let income = active.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let expenses = active.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let transferred = active.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
         let diff = income - expenses - transferred
         return Money(max(0, diff))
     }
 
     var isOverspent: Bool {
-        let income = allTransactions.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let expenses = allTransactions.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let transferred = allTransactions.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let active = activeTransactions
+        let income = active.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let expenses = active.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
+        let transferred = active.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
         return (income - expenses - transferred) < 0
     }
     
@@ -152,7 +163,7 @@ final class GoalsViewModel {
                 
                 while date <= endDate {
                     let nextDay = calendar.date(byAdding: .day, value: 1, to: date)!
-                    let hasViolated = allTransactions.contains { txn in
+                    let hasViolated = activeTransactions.contains { txn in
                         txn.type == .expense &&
                         txn.date >= date && txn.date < nextDay &&
                         (txn.category.map { blockList.contains($0.id) } ?? false)
@@ -167,6 +178,78 @@ final class GoalsViewModel {
                 }
                 goal.currentStreak = streak
                 goal.longestStreak = max(goal.longestStreak, longest)
+            } else if goal.type == .dailyLimit {
+                var successCount = 0
+                let start = calendar.startOfDay(for: goal.startDate)
+                let today = calendar.startOfDay(for: now)
+                let endDate = min(today, calendar.startOfDay(for: goal.deadline))
+                
+                var date = start
+                let blockList = Set(goal.blockedCategoryIDs)
+                
+                while date <= endDate {
+                    let nextDay = calendar.date(byAdding: .day, value: 1, to: date)!
+                    let dailyTotal = activeTransactions
+                        .filter { txn in
+                            txn.type == .expense &&
+                            txn.date >= date && txn.date < nextDay &&
+                            (blockList.isEmpty || (txn.category.map { blockList.contains($0.id) } ?? false))
+                        }
+                        .reduce(Decimal(0)) { $0 + $1.money.amount }
+                    
+                    if dailyTotal <= goal.targetAmount.amount {
+                        successCount += 1
+                    }
+                    date = nextDay
+                }
+                goal.currentStreak = successCount // Reusing field for successful days
+            }
+            
+            // Check for notifications
+            checkThresholds(for: goal)
+        }
+    }
+
+    private func checkThresholds(for goal: Goal) {
+        guard let appState = appState, appState.isGoalAlertsEnabled else { return }
+        
+        let p = progressFraction(for: goal)
+        
+        if goal.type == .budgetCap {
+            if p >= 0.8 && !goal.hasNotified80 {
+                var catName = "Overall Budget"
+                if !goal.blockedCategoryIDs.isEmpty {
+                    let ids = Set(goal.blockedCategoryIDs)
+                    do {
+                        let categories = try modelContext?.fetch(FetchDescriptor<Category>()) ?? []
+                        let names = categories.filter { ids.contains($0.id) }.map(\.name)
+                        if !names.isEmpty {
+                            catName = names.joined(separator: ", ")
+                        }
+                    } catch {}
+                }
+                NotificationManager.shared.sendThresholdAlert(for: .budget80(catName))
+                goal.hasNotified80 = true
+            } else if p < 0.8 {
+                // Reset flag so user gets warned again if they spend more after cleaning up
+                goal.hasNotified80 = false
+            }
+        } else if goal.type == .savings {
+            if p >= 1.0 && !goal.hasNotified100 {
+                NotificationManager.shared.sendThresholdAlert(for: .goalFilled(goal.title))
+                goal.hasNotified100 = true
+                goal.hasNotified90 = true 
+            } else if p >= 0.9 && !goal.hasNotified90 {
+                NotificationManager.shared.sendThresholdAlert(for: .goal90(goal.title))
+                goal.hasNotified90 = true
+            }
+            
+            // Notification Resets for backward progress
+            if p < 1.0 {
+                goal.hasNotified100 = false
+            }
+            if p < 0.9 {
+                goal.hasNotified90 = false
             }
         }
     }
@@ -175,22 +258,23 @@ final class GoalsViewModel {
         switch goal.type {
         case .savings:
             let transferred = allTransactions
-                .filter { $0.linkedGoal?.id == goal.id }
+                .filter { !$0.isArchived && $0.linkedGoal?.id == goal.id }
                 .reduce(Decimal.zero) { $0 + $1.money.amount }
             return Money(transferred)
 
         case .budgetCap:
             guard !goal.blockedCategoryIDs.isEmpty else { return .zero }
             let startOfDay = Calendar.current.startOfDay(for: goal.startDate)
-            return Money(allTransactions
+            return Money(activeTransactions
                 .filter {
+                    !$0.isArchived &&
                     $0.type == .expense &&
                     $0.date >= startOfDay && $0.date <= goal.deadline &&
                     goal.blockedCategoryIDs.contains($0.category?.id ?? UUID())
                 }
                 .reduce(Decimal.zero) { $0 + $1.money.amount })
 
-        case .noSpend:
+        case .noSpend, .dailyLimit:
             return Money(Decimal(goal.currentStreak))
         }
     }

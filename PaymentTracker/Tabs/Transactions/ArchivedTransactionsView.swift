@@ -31,34 +31,45 @@ struct ArchivedTransactionsView: View {
                 } else {
                     List(selection: $selectedTransactions) {
                         Section {
-                            ForEach(archivedTransactions) { txn in
-                                TransactionCard(transaction: txn)
-                                    .tag(txn.id)
-                                    .swipeActions(edge: .leading) {
-                                        if editMode == .inactive {
-                                            Button {
-                                                transactionToDelete = txn
-                                                activeAlert = .restore
-                                            } label: {
-                                                Label("Restore", systemImage: "arrow.uturn.backward")
-                                            }
-                                            .tint(.green)
-                                        }
-                                    }
-                                    .swipeActions(edge: .trailing) {
-                                        if editMode == .inactive {
-                                            Button {
-                                                transactionToDelete = txn
-                                                activeAlert = .delete
-                                            } label: {
-                                                Label("Delete Forever", systemImage: "trash.fill")
-                                            }
-                                        }
-                                    }
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                            }
+                             ForEach(archivedTransactions) { txn in
+                                 TransactionCard(transaction: txn) {
+                                     if editMode == .inactive {
+                                         transactionViewModel.presentEdit(txn)
+                                     }
+                                 }
+                                     .tag(txn.id)
+                                     .swipeActions(edge: .leading) {
+                                         if editMode == .inactive {
+                                             Button {
+                                                 transactionToDelete = txn
+                                                 activeAlert = .restore
+                                             } label: {
+                                                 Label("Restore", systemImage: "arrow.uturn.backward")
+                                             }
+                                             .tint(.green)
+                                         }
+                                     }
+                                     .swipeActions(edge: .trailing) {
+                                         if editMode == .inactive {
+                                             Button {
+                                                 transactionToDelete = txn
+                                                 activeAlert = .delete
+                                             } label: {
+                                                 Label("Delete Forever", systemImage: "trash.fill")
+                                             }
+                                         }
+                                     }
+                                     .contextMenu {
+                                         if editMode == .inactive {
+                                             Button { transactionViewModel.presentEdit(txn) } label: { Label("Edit", systemImage: "pencil") }
+                                             Button { transactionToDelete = txn; activeAlert = .restore } label: { Label("Restore", systemImage: "arrow.uturn.backward") }
+                                             Button(role: .destructive) { transactionToDelete = txn; activeAlert = .delete } label: { Label("Delete Forever", systemImage: "trash") }
+                                         }
+                                     }
+                                     .listRowSeparator(.hidden)
+                                     .listRowBackground(Color.clear)
+                                     .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                             }
                             
                             // Spacer item within the SAME section to avoid extra separators
                             Color.clear
@@ -156,7 +167,12 @@ struct ArchivedTransactionsView: View {
             if activeAlert == .delete {
                 Button("Delete Permanently", role: .destructive) {
                     if let toDelete = transactionToDelete {
-                        transactionViewModel.deletePermanently(toDelete)
+                        transactionToDelete = nil 
+                        // Delay deletion slightly to let UI loop clear references
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 50_000_000) // 0.05s
+                            transactionViewModel.deletePermanently(toDelete)
+                        }
                     } else {
                         deleteSelected()
                     }
@@ -223,7 +239,16 @@ struct ArchivedTransactionsView: View {
 
     private func deleteSelected() {
         let targets = archivedTransactions.filter { selectedTransactions.contains($0.id) }
-        transactionViewModel.deleteMultiplePermanently(targets)
-        exitEditMode()
+        
+        // Hide UI state synchronously
+        selectedTransactions.removeAll()
+        editMode = .inactive
+        appStateViewModel.isTabBarHidden = false
+        
+        // Delay actual context mutation to allow views to finish rendering the removal
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+            transactionViewModel.deleteMultiplePermanently(targets)
+        }
     }
 }

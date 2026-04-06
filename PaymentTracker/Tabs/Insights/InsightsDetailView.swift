@@ -37,6 +37,7 @@ struct InsightsDetailView: View {
 
     private var filteredExpenses: [Transaction] {
         allTransactions.filter { 
+            !$0.isArchived &&
             $0.type == .expense && 
             $0.date >= startDate && 
             $0.date <= endDate 
@@ -45,6 +46,7 @@ struct InsightsDetailView: View {
     
     private var filteredTransfers: [Transaction] {
         allTransactions.filter { 
+            !$0.isArchived &&
             $0.type == .transfer && 
             $0.linkedGoal != nil &&
             $0.date >= startDate && 
@@ -109,14 +111,6 @@ struct InsightsDetailView: View {
             let (start, end) = newPeriod.dateRange
             startDate = start
             endDate = end
-        }
-        .sheet(isPresented: .init(
-            get: { transactionViewModel.isAddEditSheetPresented },
-            set: { transactionViewModel.isAddEditSheetPresented = $0 }
-        )) {
-            AddEditTransactionView(
-                mode: transactionViewModel.transactionToEdit.map { .edit($0) } ?? .add
-            )
         }
     }
     

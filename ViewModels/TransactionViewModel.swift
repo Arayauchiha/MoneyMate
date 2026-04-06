@@ -109,6 +109,7 @@ final class TransactionViewModel {
     @MainActor
     func archive(_ transaction: Transaction) {
         transaction.isArchived = true
+        transaction.archivedDate = Date()
         guard let context = modelContext else { return }
         save(context: context)
         Task { @MainActor in
@@ -119,8 +120,10 @@ final class TransactionViewModel {
     @MainActor
     func archiveMultiple(_ transactions: [Transaction]) {
         guard let context = modelContext else { return }
+        let now = Date()
         for txn in transactions {
             txn.isArchived = true
+            txn.archivedDate = now
         }
         save(context: context)
         Task { @MainActor in
@@ -131,6 +134,7 @@ final class TransactionViewModel {
     @MainActor
     func restore(_ transaction: Transaction) {
         transaction.isArchived = false
+        transaction.archivedDate = nil
         guard let context = modelContext else { return }
         save(context: context)
         Task { @MainActor in
@@ -143,6 +147,7 @@ final class TransactionViewModel {
         guard let context = modelContext else { return }
         for txn in transactions {
             txn.isArchived = false
+            txn.archivedDate = nil
         }
         save(context: context)
         Task { @MainActor in
@@ -236,6 +241,24 @@ final class TransactionViewModel {
     func presentEdit(_ transaction: Transaction) {
         transactionToEdit = transaction
         isAddEditSheetPresented = true
+    }
+
+    @MainActor
+    func cleanupOldArchives() {
+        guard let context = modelContext else { return }
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        
+        let toDelete = allTransactions.filter { txn in
+            txn.isArchived && (txn.archivedDate ?? .distantPast) < thirtyDaysAgo
+        }
+        
+        guard !toDelete.isEmpty else { return }
+        
+        for txn in toDelete {
+            context.delete(txn)
+        }
+        save(context: context)
+        Task { await load() }
     }
 
     private func save(context: ModelContext) {

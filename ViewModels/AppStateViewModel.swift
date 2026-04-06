@@ -15,6 +15,20 @@ final class AppStateViewModel {
     @ObservationIgnored @AppStorage("user_name") var userName: String = "User"
     @ObservationIgnored @AppStorage("is_biometrics_enabled") var isBiometricsEnabled: Bool = false
     
+    var isDailyReminderEnabled: Bool {
+        didSet { UserDefaults.standard.set(isDailyReminderEnabled, forKey: "is_daily_reminder_enabled") }
+    }
+    
+    var isGoalAlertsEnabled: Bool {
+        didSet { UserDefaults.standard.set(isGoalAlertsEnabled, forKey: "is_goal_alerts_enabled") }
+    }
+    
+    private var dailyReminderTimeRaw: Double {
+        didSet { UserDefaults.standard.set(dailyReminderTimeRaw, forKey: "daily_reminder_time_raw") }
+    }
+    
+    var isNotificationAuthorized: Bool = true
+    
     // Observable Currency
     var userCurrency: String {
         didSet {
@@ -38,8 +52,19 @@ final class AppStateViewModel {
     var alertMessage: String = ""
     var isAlertPresented: Bool = false
     
+    var dailyReminderTime: Date {
+        get { Date(timeIntervalSince1970: dailyReminderTimeRaw) }
+        set { dailyReminderTimeRaw = newValue.timeIntervalSince1970 }
+    }
+
     init() {
         self.userCurrency = UserDefaults.standard.string(forKey: "user_currency") ?? "₹"
+        self.isDailyReminderEnabled = UserDefaults.standard.bool(forKey: "is_daily_reminder_enabled")
+        self.isGoalAlertsEnabled = UserDefaults.standard.object(forKey: "is_goal_alerts_enabled") as? Bool ?? true
+        self.dailyReminderTimeRaw = UserDefaults.standard.double(forKey: "daily_reminder_time_raw")
+        if self.dailyReminderTimeRaw == 0 {
+            self.dailyReminderTimeRaw = Date().timeIntervalSince1970
+        }
     }
 
     private(set) var modelContext: ModelContext?
@@ -49,6 +74,14 @@ final class AppStateViewModel {
         // Initial lock check
         if isBiometricsEnabled {
             isAppLocked = true
+        }
+        
+        // Notification Check
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let status = settings.authorizationStatus
+            Task { @MainActor in
+                self.isNotificationAuthorized = (status == .authorized || status == .provisional)
+            }
         }
     }
 
