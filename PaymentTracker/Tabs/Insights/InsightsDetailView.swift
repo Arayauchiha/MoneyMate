@@ -256,10 +256,10 @@ struct InsightsDetailView: View {
                                 transactionViewModel.presentEdit(txn)
                             } label: {
                                 HStack(spacing: 14) {
-                                    // Rank badge
-                                    Text("#\(rank + 1)")
-                                        .font(.caption.bold())
-                                        .foregroundStyle(rank == 0 ? .orange : .secondary)
+                                    // Modern Icon instead of rank number
+                                    Image(systemName: rank == 0 ? "star.fill" : "circle.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(rank == 0 ? .orange : .secondary.opacity(0.3))
                                         .frame(width: 28)
 
                                     VStack(alignment: .leading, spacing: 3) {
@@ -532,11 +532,11 @@ struct InsightsDetailView: View {
                                 HStack {
                                     // Rank circle
                                     Circle()
-                                        .fill(Color.green.opacity(0.15))
+                                        .fill(Color.green.opacity(0.1))
                                         .frame(width: 36, height: 36)
                                         .overlay {
-                                            Text("\(rank + 1)")
-                                                .font(.caption.bold())
+                                            Image(systemName: rank == 0 ? "star.fill" : "target")
+                                                .font(.system(size: 14, weight: .bold))
                                                 .foregroundStyle(.green)
                                         }
 
@@ -577,11 +577,7 @@ struct InsightsDetailView: View {
                             .padding(16)
                             .background(
                                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(Color.green.opacity(0.04))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                            .strokeBorder(Color.green.opacity(0.12), lineWidth: 1)
-                                    )
+                                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
                             )
                         }
                     }

@@ -36,6 +36,35 @@ struct FundGoalView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
+                    
+                    Divider()
+                        .padding(.horizontal, 40)
+                    
+                    VStack(spacing: 12) {
+                        let current = goalsViewModel.currentAmount(for: goal).amount
+                        let target = goal.targetAmount.amount
+                        let needed = max(0, target - current)
+                        let progress = target > 0 ? (Double(truncating: current as NSNumber) / Double(truncating: target as NSNumber)) : 0
+                        
+                        Text("Goal Progress")
+                            .font(.system(size: 10, weight: .black))
+                            .textCase(.uppercase)
+                            .foregroundStyle(.secondary)
+                            .tracking(1)
+                        
+                        ProgressView(value: progress)
+                            .tint(goalsViewModel.status(for: goal).color)
+                            .padding(.horizontal, 40)
+                        
+                        HStack(spacing: 8) {
+                            Text("\(Int(progress * 100))% Funded")
+                            Text("•")
+                            Text("\(Money(needed).formatted) Remaining")
+                        }
+                        .font(.caption2.bold())
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 16)
                 }
                 .listRowBackground(Color.clear)
                 
@@ -74,7 +103,7 @@ struct FundGoalView: View {
             } message: {
                 Text(errorMessage)
             }
-            .alert("Funding Successful! 🎉", isPresented: $showSuccessAlert) {
+            .alert("Funding Successful", isPresented: $showSuccessAlert) {
                 Button("Great!") { dismiss() }
             } message: {
                 Text(successMessage)

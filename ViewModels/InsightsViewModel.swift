@@ -4,13 +4,19 @@ import SwiftUI
 @Observable
 final class InsightsViewModel {
     var selectedPeriod: TimePeriod = .month {
-        didSet { Task { await load() } }
+        didSet {
+            if !isSelectingCustomMonth {
+                customMonth = nil
+            }
+            Task { await load() }
+        }
     }
 
     var categoryTotals: [CategoryTotal] = []
     var weekComparison: WeekComparison?
     var topCategory: CategoryTotal?
     var totalForPeriod: Money = .zero
+    var totalIncomeForPeriod: Money = .zero
     var totalFundedToGoals: Money = .zero
     var averagePerDay: Money = .zero
     var monthlyTrend: [TrendTotal] = []
@@ -18,10 +24,73 @@ final class InsightsViewModel {
     var dailyTrend: [TrendTotal] = []
     var monthlyComparisonTrends: [ComparisonTrend] = []
     var daysInPeriod: Int = 1
+    
+    var customMonth: Date? {
+        didSet { Task { await load() } }
+    }
+    
+    var currentMonthYearDisplay: String {
+        // If a specific month is manually selected, show it
+        if let customMonth {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMMM yyyy"
+            return formatter.string(from: customMonth)
+        }
+        // Otherwise derive a label from the active period's date range
+        let (start, end) = selectedPeriod.dateRange
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "MMMM yyyy"
+
+        switch selectedPeriod {
+        case .week:
+            // e.g. "3 – 9 Apr 2026"
+            let dayFormatter = DateFormatter()
+            dayFormatter.dateFormat = "d MMM"
+            let endFull = DateFormatter()
+            endFull.dateFormat = "d MMM yyyy"
+            return "\(dayFormatter.string(from: start)) – \(endFull.string(from: end))"
+        case .month:
+            // e.g. "April 2026"
+            return monthFormatter.string(from: start)
+        case .threeMonths:
+            // e.g. "Jan – Mar 2026"
+            let shortMonth = DateFormatter()
+            shortMonth.dateFormat = "MMM"
+            let yearFormatter = DateFormatter()
+            yearFormatter.dateFormat = "yyyy"
+            return "\(shortMonth.string(from: start)) – \(shortMonth.string(from: end)) \(yearFormatter.string(from: end))"
+        case .year:
+            // e.g. "2026"
+            let yearFormatter = DateFormatter()
+            yearFormatter.dateFormat = "yyyy"
+            return yearFormatter.string(from: start)
+        }
+    }
 
     var isLoading: Bool = false
     var error: String?
 
+    var lastTwelveMonths: [Date] {
+        let calendar = Calendar.current
+        let today = Date()
+        return (0..<12).compactMap { i in
+            calendar.date(byAdding: .month, value: -i, to: today)
+        }
+    }
+    
+    private var isSelectingCustomMonth = false
+
+    func selectMonth(_ date: Date?) {
+        if let date {
+            isSelectingCustomMonth = true
+            customMonth = date
+            isSelectingCustomMonth = false
+        } else {
+            customMonth = nil
+        }
+        Task { await load() }
+    }
+    
     private var modelContext: ModelContext?
 
     func configure(context: ModelContext) {
@@ -42,13 +111,26 @@ final class InsightsViewModel {
             let allTxns = try modelContext.fetch(descriptor).filter { $0.modelContext != nil }
             let activeTxns = allTxns.filter { !$0.isArchived }
 
-            let (start, end) = selectedPeriod.dateRange
+            let (start, end): (Date, Date)
+            if let customMonth {
+                let calendar = Calendar.current
+                let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: customMonth))!
+                let monthEnd = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: monthStart)!
+                start = monthStart
+                end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: monthEnd)!
+            } else {
+                (start, end) = selectedPeriod.dateRange
+            }
+            
             let periodTxns = activeTxns.filter { $0.date >= start && $0.date <= end && $0.type == .expense }
 
             daysInPeriod = max(1, Calendar.current.dateComponents([.day], from: start, to: end).day ?? 1)
             categoryTotals = buildCategoryTotals(from: periodTxns)
             topCategory = categoryTotals.first
             totalForPeriod = periodTxns.reduce(.zero) { $0 + $1.money }
+            totalIncomeForPeriod = activeTxns
+                .filter { $0.date >= start && $0.date <= end && $0.type == .income }
+                .reduce(.zero) { $0 + $1.money }
             totalFundedToGoals = activeTxns
                 .filter { $0.date >= start && $0.date <= end && $0.type == .transfer && $0.linkedGoal != nil }
                 .reduce(.zero) { $0 + $1.money }

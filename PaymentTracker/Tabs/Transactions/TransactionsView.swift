@@ -20,7 +20,7 @@ struct TransactionsView: View {
 
     var groupedTransactions: [(Date, [Transaction])] {
         let grouped = Dictionary(grouping: sortedFilteredTransactions) { txn in
-            Calendar.current.startOfDay(for: txn.date)
+            Calendar.current.startOfDay(for: txn.effectiveDate)
         }
         return grouped.sorted { $0.key > $1.key }
     }

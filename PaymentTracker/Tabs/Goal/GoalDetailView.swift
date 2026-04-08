@@ -74,6 +74,31 @@ struct GoalDetailView: View {
                         if associatedTransactions.isEmpty {
                             emptyState
                         } else {
+                            if goal.type == .noSpend || goal.type == .budgetCap {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Impact Summary")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.secondary)
+                                    
+                                    let totalSpent = associatedTransactions.reduce(Decimal(0)) { $0 + $1.money.amount }
+                                    HStack {
+                                        Text("Total spent in blocked categories:")
+                                        Spacer()
+                                        Text(Money(totalSpent).formatted(with: appStateViewModel.userCurrency))
+                                            .foregroundStyle(.red)
+                                            .fontWeight(.bold)
+                                    }
+                                    .font(.subheadline)
+                                    .padding()
+                                    .background(Color.red.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                                    
+                                    Divider()
+                                        .padding(.vertical, 8)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.bottom, 8)
+                            }
+
                             VStack(spacing: 0) {
                                 ForEach(Array(associatedTransactions.enumerated()), id: \.element.id) { index, txn in
                                     HStack(spacing: 12) {
@@ -366,6 +391,10 @@ struct GoalDetailView: View {
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                         .tracking(1)
+                    
+                    Text("\(associatedTransactions.count) recorded transactions")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary.opacity(0.7))
                 }
                 
                 Spacer()

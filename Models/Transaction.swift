@@ -10,6 +10,14 @@ final class Transaction: Identifiable {
     var note: String = ""
     var isArchived: Bool = false
     var archivedDate: Date? = nil
+    var repeatFrequency: String = "never" // never, daily, weekly, monthly, yearly
+    var isScheduled: Bool = false
+
+    /// Transient: set by ViewModel to show a recurring occurrence at a different date without creating an unmanaged proxy.
+    @Transient var displayDate: Date? = nil
+
+    /// The date to use for display purposes (occurrence date if set, otherwise actual stored date).
+    var effectiveDate: Date { displayDate ?? date }
 
     private var amountRaw: String
 
@@ -24,7 +32,9 @@ final class Transaction: Identifiable {
         linkedGoal: Goal? = nil,
         date: Date = .now,
         title: String = "",
-        note: String = ""
+        note: String = "",
+        repeatFrequency: String = "never",
+        isScheduled: Bool = false
     ) {
         self.id = id
         self.amountRaw = "\(amount.amount)"
@@ -34,6 +44,8 @@ final class Transaction: Identifiable {
         self.date = date
         self.title = title
         self.note = note
+        self.repeatFrequency = repeatFrequency
+        self.isScheduled = isScheduled
     }
 
     var money: Money {
@@ -65,6 +77,75 @@ final class Transaction: Identifiable {
         case .expense: "-\(money.formattedCompact)"
         case .transfer: money.formattedCompact
         }
+    }
+
+    func occurrences(upTo date: Date) -> Int {
+        guard repeatFrequency != "never" else {
+            return self.date <= date ? 1 : 0
+        }
+        
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: self.date)
+        let end = calendar.startOfDay(for: date)
+        
+        guard start <= end else { return 0 }
+        
+        let components: Calendar.Component
+        switch repeatFrequency {
+        case "daily": components = .day
+        case "weekly": components = .weekOfYear
+        case "monthly": components = .month
+        case "yearly": components = .year
+        default: return 1
+        }
+        
+        let diff = calendar.dateComponents([components], from: start, to: end)
+        let count = (diff.value(for: components) ?? 0) + 1
+        return count
+    }
+
+    /// Returns every date this transaction occurs on from its origin up to `cutoff`.
+    func occurrenceDates(upTo cutoff: Date) -> [Date] {
+        guard repeatFrequency != "never" else {
+            return self.date <= cutoff ? [self.date] : []
+        }
+
+        let calendar = Calendar.current
+        var dates: [Date] = []
+        var current = self.date
+
+        let component: Calendar.Component
+        switch repeatFrequency {
+        case "daily":   component = .day
+        case "weekly":  component = .weekOfYear
+        case "monthly": component = .month
+        case "yearly":  component = .year
+        default:        return [self.date]
+        }
+
+        while current <= cutoff {
+            dates.append(current)
+            guard let next = calendar.date(byAdding: component, value: 1, to: current) else { break }
+            current = next
+        }
+        return dates
+    }
+
+    /// Creates a display-only in-memory occurrence of this transaction on a different date.
+    /// This object is NEVER inserted into any model context — it is purely for UI display.
+    func virtualOccurrence(on occurrenceDate: Date) -> Transaction {
+        let virtual = Transaction(
+            amount: self.money,
+            type: self.type,
+            category: self.category,
+            linkedGoal: self.linkedGoal,
+            date: occurrenceDate,
+            title: self.title,
+            note: self.note,
+            repeatFrequency: self.repeatFrequency
+        )
+        virtual.displayDate = occurrenceDate
+        return virtual
     }
 }
 

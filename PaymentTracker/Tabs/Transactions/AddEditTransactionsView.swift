@@ -21,6 +21,7 @@ struct AddEditTransactionView: View {
     @State private var type: TransactionType = .expense
     @State private var category: Category?
     @State private var date: Date = .now
+    @State private var repeatFrequency: String = "never"
     @State private var title: String = ""
     @State private var note: String = ""
     @State private var customCategoryName: String = ""
@@ -53,7 +54,7 @@ struct AddEditTransactionView: View {
             Form {
                 Section {
                     Picker("Type", selection: $type) {
-                        ForEach(TransactionType.allCases) { tType in
+                        ForEach(TransactionType.allCases.filter { $0 != .transfer }) { tType in
                             Text(tType.label).tag(tType)
                         }
                     }
@@ -78,7 +79,15 @@ struct AddEditTransactionView: View {
                 }
                 
                 Section {
-                    DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    
+                    Picker("Repeat", selection: $repeatFrequency) {
+                        Text("Never").tag("never")
+                        Text("Daily").tag("daily")
+                        Text("Weekly").tag("weekly")
+                        Text("Monthly").tag("monthly")
+                        Text("Yearly").tag("yearly")
+                    }
                     
                     Picker("Category", selection: $category) {
                         Label("Uncategorised", systemImage: "questionmark.circle")
@@ -154,6 +163,7 @@ struct AddEditTransactionView: View {
         type = existingTransaction.type
         category = existingTransaction.category
         date = existingTransaction.date
+        repeatFrequency = existingTransaction.repeatFrequency
         title = existingTransaction.title
         note = existingTransaction.note
         selectedGoal = existingTransaction.linkedGoal
@@ -180,11 +190,11 @@ struct AddEditTransactionView: View {
         }
 
         if let existingTransaction {
-            transactionViewModel.update(transaction: existingTransaction, amount: money, type: type, category: finalCategory, date: date, title: title, note: note, linkedGoal: selectedGoal)
-            successMessage = "Successfully updated \(title) for \(money.formatted(with: appStateViewModel.userCurrency))"
+            transactionViewModel.update(transaction: existingTransaction, amount: money, type: type, category: finalCategory, date: date, title: title, note: note, repeatFrequency: repeatFrequency, linkedGoal: selectedGoal)
+            successMessage = "Successfully updated \(title)"
         } else {
-            transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, title: title, note: note, linkedGoal: selectedGoal)
-            successMessage = "Successfully added \(title) for \(money.formatted(with: appStateViewModel.userCurrency))"
+            transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, title: title, note: note, repeatFrequency: repeatFrequency, linkedGoal: selectedGoal)
+            successMessage = "Successfully added \(title)"
         }
         
         showSuccessAlert = true

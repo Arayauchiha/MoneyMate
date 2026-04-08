@@ -47,7 +47,6 @@ struct AppTabView: View {
                 }
             }
             .tint(Color(hex: "10B981")) // Fintech green for active tab
-            .tabBarMinimizeBehavior(.onScrollDown)
             .toolbar(appState.isTabBarHidden ? .hidden : .visible, for: .tabBar)
             .animation(.default, value: appState.isTabBarHidden)
             .blur(radius: appState.isAppLocked ? 15 : 0)

@@ -128,25 +128,69 @@ final class GoalsViewModel {
 
     var availableToSave: Money {
         let active = activeTransactions
-        let income = active.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let expenses = active.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let transferred = active.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let diff = income - expenses - transferred
+        let now = Date()
+        
+        var totalIncome: Decimal = 0
+        var totalExpenses: Decimal = 0
+        var totalTransferred: Decimal = 0
+        
+        for txn in active {
+            let count = Decimal(txn.occurrences(upTo: now))
+            let impact = txn.money.amount * count
+            
+            switch txn.type {
+            case .income:
+                totalIncome += impact
+            case .expense:
+                totalExpenses += impact
+            case .transfer:
+                if txn.linkedGoal != nil {
+                    totalTransferred += impact
+                }
+            }
+        }
+        
+        let diff = totalIncome - totalExpenses - totalTransferred
         return Money(max(0, diff))
+    }
+
+    var totalBalance: Money {
+        let active = activeTransactions
+        let now = Date()
+        
+        var income: Decimal = 0
+        var expenses: Decimal = 0
+        
+        for txn in active {
+            let count = Decimal(txn.occurrences(upTo: now))
+            let impact = txn.money.amount * count
+            
+            if txn.type == .income {
+                income += impact
+            } else if txn.type == .expense {
+                expenses += impact
+            }
+        }
+        
+        return Money(income - expenses)
     }
 
     var totalGoalFunding: Money {
         let active = activeTransactions
-        let transferred = active.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        return Money(transferred)
+        let now = Date()
+        var total: Decimal = 0
+        for txn in active {
+            if txn.type == .transfer && txn.linkedGoal != nil {
+                total += txn.money.amount * Decimal(txn.occurrences(upTo: now))
+            }
+        }
+        return Money(total)
     }
 
     var isOverspent: Bool {
-        let active = activeTransactions
-        let income = active.filter { $0.type == .income }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let expenses = active.filter { $0.type == .expense }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        let transferred = active.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(Decimal.zero) { $0 + $1.money.amount }
-        return (income - expenses - transferred) < 0
+        let bal = totalBalance.amount
+        let funded = totalGoalFunding.amount
+        return (bal - funded) < 0
     }
     
     var hasNoTransactions: Bool {

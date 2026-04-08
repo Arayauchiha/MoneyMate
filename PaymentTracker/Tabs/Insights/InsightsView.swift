@@ -6,38 +6,32 @@ struct InsightsView: View {
     @Environment(InsightsViewModel.self) private var insightsViewModel
     @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(TransactionViewModel.self) private var transactionViewModel
-
+    @Environment(GoalsViewModel.self) private var goalsViewModel
     @Query private var allTransactions: [Transaction]
+    
     @State private var selectedPieAmount: Decimal?
-    @State private var selectedMonth: String?
     @State private var chartProgress: Double = 0
 
     var body: some View {
+        @Bindable var insightsViewModel = insightsViewModel
+        
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    periodPicker
-                    
-                    if insightsViewModel.selectedPeriod == .week, let comp = insightsViewModel.weekComparison {
-                        weekComparisonSection(comparison: comp)
-                    }
-                    
                     summarySection
-                    
-                    if !insightsViewModel.categoryTotals.isEmpty {
-                        spendingAnalysisCard
-                    } else {
-                        emptyState
-                    }
-                    
-                    if !insightsViewModel.monthlyTrend.isEmpty {
-                        monthlyTrendChart
-                    }
+                    spendingAnalysisCard
+                    monthlyTrendChart
                 }
                 .padding()
             }
             .navigationTitle("Insights")
+            .navigationBarTitleDisplayMode(.large)
             .background(Color(uiColor: .systemGroupedBackground))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    filterMenu
+                }
+            }
             .task { 
                 chartProgress = 0
                 await insightsViewModel.load() 
@@ -71,8 +65,8 @@ struct InsightsView: View {
     }
     
     private var periodPicker: some View {
-        @Bindable var viewModel = insightsViewModel
-        return Picker("Period", selection: $viewModel.selectedPeriod) {
+        @Bindable var insightsViewModel = insightsViewModel
+        return Picker("Period", selection: $insightsViewModel.selectedPeriod) {
             ForEach(TimePeriod.allCases) { period in
                 Text(period.label).tag(period)
             }
@@ -106,36 +100,130 @@ struct InsightsView: View {
     }
     
     private var summarySection: some View {
-        let (start, end) = insightsViewModel.selectedPeriod.dateRange
+        VStack(spacing: 16) {
+            // Native month subtitle
+            HStack {
+                Text(insightsViewModel.currentMonthYearDisplay)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.leading, 4)
 
-        return VStack(spacing: 16) {
+            if insightsViewModel.selectedPeriod == .week, let comp = insightsViewModel.weekComparison {
+                weekComparisonSection(comparison: comp)
+            }
+
+            // Prominent Current Balance (not a card, not tappable)
+            currentBalanceDisplay
+
             HStack(spacing: 16) {
-                NavigationLink {
-                    InsightsDetailView(type: .totalSpend, startDate: start, endDate: end)
-                } label: {
-                    summaryCard(title: "Total Spend", value: insightsViewModel.totalForPeriod.formatted(with: appStateViewModel.userCurrency), color: FintechDesign.primaryText)
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink {
-                    InsightsDetailView(type: .dailyAverage, startDate: start, endDate: end)
-                } label: {
-                    summaryCard(title: "Daily Avg", value: insightsViewModel.averagePerDay.formatted(with: appStateViewModel.userCurrency), color: FintechDesign.primaryText)
-                }
-                .buttonStyle(.plain)
+                totalSpentCard
+                monthFundedCard
             }
 
             HStack(spacing: 16) {
-                NavigationLink {
-                    InsightsDetailView(type: .fundedToGoals, startDate: start, endDate: end)
-                } label: {
-                    summaryCard(title: "Funded to Goals", value: insightsViewModel.totalFundedToGoals.formatted(with: appStateViewModel.userCurrency), color: .green)
-                }
-                .buttonStyle(.plain)
+                netSavingsCard
+                dailyAverageCard
             }
         }
     }
+
+    @ViewBuilder
+    private var filterMenu: some View {
+        @Bindable var insightsViewModel = insightsViewModel
+        Menu {
+            Section("Standard Periods") {
+                Picker("Period", selection: $insightsViewModel.selectedPeriod) {
+                    ForEach(TimePeriod.allCases) { period in
+                        Text(period.label).tag(period)
+                    }
+                }
+            }
+            
+            Section("Historical Months") {
+                ForEach(insightsViewModel.lastTwelveMonths, id: \.self) { date in
+                    Button {
+                        insightsViewModel.selectMonth(date)
+                    } label: {
+                        HStack {
+                            Text(monthLabel(for: date))
+                            if insightsViewModel.customMonth == date {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            }
+        } label: {
+            Label(insightsViewModel.selectedPeriod.label, systemImage: "line.3.horizontal.decrease.circle")
+                .font(.system(size: 14, weight: .bold))
+        }
+    }
     
+    private func monthLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: date)
+    }
+
+    // Prominent balance display — not a card, not tappable
+    private var currentBalanceDisplay: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Current Balance")
+                .font(.caption.bold())
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .tracking(0.5)
+            Text(goalsViewModel.totalBalance.formatted(with: appStateViewModel.userCurrency))
+                .font(.system(size: 38, weight: .black, design: .rounded))
+                .foregroundStyle(Color(hex: "10B981"))
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 4)
+    }
+
+    private var totalSpentCard: some View {
+        let (start, end) = insightsViewModel.selectedPeriod.dateRange
+        return NavigationLink {
+            InsightsDetailView(type: .totalSpend, startDate: start, endDate: end)
+        } label: {
+            summaryCard(title: "Total Spent", value: insightsViewModel.totalForPeriod.formatted(with: appStateViewModel.userCurrency), color: .red)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var monthFundedCard: some View {
+        let (start, end) = insightsViewModel.selectedPeriod.dateRange
+        return NavigationLink {
+            InsightsDetailView(type: .fundedToGoals, startDate: start, endDate: end)
+        } label: {
+            summaryCard(title: "Month Funded", value: insightsViewModel.totalFundedToGoals.formatted(with: appStateViewModel.userCurrency), color: .white)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var netSavingsCard: some View {
+        let savings = insightsViewModel.totalIncomeForPeriod - insightsViewModel.totalForPeriod
+        return NavigationLink {
+            SavingsBreakdownView()
+        } label: {
+            summaryCard(title: "Net Savings", value: savings.formatted(with: appStateViewModel.userCurrency), color: .white)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var dailyAverageCard: some View {
+        let (start, end) = insightsViewModel.selectedPeriod.dateRange
+        return NavigationLink {
+            InsightsDetailView(type: .dailyAverage, startDate: start, endDate: end)
+        } label: {
+            summaryCard(title: "Daily Avg Spend", value: insightsViewModel.averagePerDay.formatted(with: appStateViewModel.userCurrency), color: .white)
+        }
+        .buttonStyle(.plain)
+    }
+
     private func summaryCard(title: String, value: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -161,8 +249,10 @@ struct InsightsView: View {
         )
     }
     
+    @ViewBuilder
     private var spendingAnalysisCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        if !insightsViewModel.categoryTotals.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
             // New Unified Header
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -270,6 +360,7 @@ struct InsightsView: View {
                         .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
                 )
         )
+        }
     }
     
     private func pieIsSelected(_ total: CategoryTotal) -> Bool {
@@ -288,8 +379,10 @@ struct InsightsView: View {
     
     @State private var selectedComparisonDate: String?
     
+    @ViewBuilder
     private var monthlyTrendChart: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        if !insightsViewModel.monthlyTrend.isEmpty {
+            VStack(alignment: .leading, spacing: 16) {
             // Header Zone (Dedicated Navigation)
             NavigationLink {
                 TrendDetailView(
@@ -420,6 +513,7 @@ struct InsightsView: View {
                         .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
                 )
         )
+        }
     }
     
     private struct LegendItem: View {

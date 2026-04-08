@@ -353,11 +353,18 @@ struct GoalCardRow: View {
                     .foregroundStyle(goalColor)
             }
             
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .lastTextBaseline) {
-                    Text(viewModel.progressLabel(for: goal, symbol: appState.userCurrency))
-                        .font(.system(.subheadline, design: .rounded).bold())
-                        .foregroundStyle(FintechDesign.primaryText)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(viewModel.progressLabel(for: goal, symbol: appState.userCurrency))
+                            .font(.system(.subheadline, design: .rounded).bold())
+                            .foregroundStyle(FintechDesign.primaryText)
+                        
+                        Text("Goal Target Progress")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.secondary.opacity(0.7))
+                            .textCase(.uppercase)
+                    }
                     
                     Spacer()
                     
@@ -367,7 +374,7 @@ struct GoalCardRow: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "plus.circle.fill")
-                                Text("Fund")
+                                Text("Fund Now")
                             }
                             .font(.system(size: 13, weight: .bold))
                             .padding(.horizontal, 16)
