@@ -62,11 +62,11 @@ final class HomeViewModel {
     }
 
     private func buildWeeklyChart(from transactions: [Transaction]) -> [DailyTotal] {
+        let (start, _) = TimePeriod.week.dateRange
         let calendar = Calendar.current
-        let today = Date()
 
-        return (0 ..< 7).reversed().map { offset -> DailyTotal in
-            let day = calendar.date(byAdding: .day, value: -offset, to: today)!
+        return (0..<7).map { offset -> DailyTotal in
+            let day = calendar.date(byAdding: .day, value: offset, to: start)!
             let dayStart = calendar.startOfDay(for: day)
             let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)!
 
@@ -90,10 +90,14 @@ final class HomeViewModel {
     }
 }
 
-struct DailyTotal: Identifiable {
+struct DailyTotal: Identifiable, Equatable {
     let id = UUID()
     let date: Date
     let total: Money
+
+    static func == (lhs: DailyTotal, rhs: DailyTotal) -> Bool {
+        lhs.date == rhs.date && lhs.total.amount == rhs.total.amount
+    }
 
     var dayLabel: String {
         let f = DateFormatter()

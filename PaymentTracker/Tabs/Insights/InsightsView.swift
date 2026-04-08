@@ -10,6 +10,7 @@ struct InsightsView: View {
     @Query private var allTransactions: [Transaction]
     @State private var selectedPieAmount: Decimal?
     @State private var selectedMonth: String?
+    @State private var chartProgress: Double = 0
 
     var body: some View {
         NavigationStack {
@@ -37,10 +38,34 @@ struct InsightsView: View {
             }
             .navigationTitle("Insights")
             .background(Color(uiColor: .systemGroupedBackground))
-            .task { await insightsViewModel.load() }
-            .refreshable { await insightsViewModel.load() }
+            .task { 
+                chartProgress = 0
+                await insightsViewModel.load() 
+                withAnimation(.easeInOut(duration: 1.2)) {
+                    chartProgress = 1.0
+                }
+            }
+            .refreshable { 
+                chartProgress = 0
+                await insightsViewModel.load() 
+                withAnimation(.easeInOut(duration: 1.2)) {
+                    chartProgress = 1.0
+                }
+            }
             .onChange(of: allTransactions) { _, _ in
-                Task { await insightsViewModel.load() }
+                Task { 
+                    chartProgress = 0
+                    await insightsViewModel.load() 
+                    withAnimation(.easeInOut(duration: 1.2)) {
+                        chartProgress = 1.0
+                    }
+                }
+            }
+            .onChange(of: insightsViewModel.selectedPeriod) { _, _ in
+                chartProgress = 0
+                withAnimation(.easeInOut(duration: 1.2)) {
+                    chartProgress = 1.0
+                }
             }
         }
     }
@@ -82,21 +107,28 @@ struct InsightsView: View {
     
     private var summarySection: some View {
         let (start, end) = insightsViewModel.selectedPeriod.dateRange
+
         return VStack(spacing: 16) {
             HStack(spacing: 16) {
-                NavigationLink(destination: InsightsDetailView(type: .totalSpend, startDate: start, endDate: end)) {
-                    summaryCard(title: "Total Spend", value: insightsViewModel.totalForPeriod.formatted(with: appStateViewModel.userCurrency), color: .primary)
+                NavigationLink {
+                    InsightsDetailView(type: .totalSpend, startDate: start, endDate: end)
+                } label: {
+                    summaryCard(title: "Total Spend", value: insightsViewModel.totalForPeriod.formatted(with: appStateViewModel.userCurrency), color: FintechDesign.primaryText)
                 }
                 .buttonStyle(.plain)
-                
-                NavigationLink(destination: InsightsDetailView(type: .dailyAverage, startDate: start, endDate: end)) {
-                    summaryCard(title: "Daily Avg", value: insightsViewModel.averagePerDay.formatted(with: appStateViewModel.userCurrency), color: .primary)
+
+                NavigationLink {
+                    InsightsDetailView(type: .dailyAverage, startDate: start, endDate: end)
+                } label: {
+                    summaryCard(title: "Daily Avg", value: insightsViewModel.averagePerDay.formatted(with: appStateViewModel.userCurrency), color: FintechDesign.primaryText)
                 }
                 .buttonStyle(.plain)
             }
-            
+
             HStack(spacing: 16) {
-                NavigationLink(destination: InsightsDetailView(type: .fundedToGoals, startDate: start, endDate: end)) {
+                NavigationLink {
+                    InsightsDetailView(type: .fundedToGoals, startDate: start, endDate: end)
+                } label: {
                     summaryCard(title: "Funded to Goals", value: insightsViewModel.totalFundedToGoals.formatted(with: appStateViewModel.userCurrency), color: .green)
                 }
                 .buttonStyle(.plain)
@@ -178,6 +210,12 @@ struct InsightsView: View {
                 .chartAngleSelection(value: $selectedPieAmount)
                 .frame(height: 220)
                 .animation(.spring(response: 0.5, dampingFraction: 0.8), value: insightsViewModel.categoryTotals)
+                .mask {
+                    Circle()
+                        .trim(from: 0, to: chartProgress)
+                        .stroke(lineWidth: 220)
+                        .rotationEffect(.degrees(-90))
+                }
                 
                 // Center Overlay
                 VStack(spacing: 2) {
@@ -215,54 +253,13 @@ struct InsightsView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 4)
             
-            // 2. Integrated Categories List
-            VStack(alignment: .leading, spacing: 0) {
-                let topThree = insightsViewModel.categoryTotals.prefix(3)
-                ForEach(Array(topThree.enumerated()), id: \.element.id) { index, categoryTotal in
-                    let (start, end) = insightsViewModel.selectedPeriod.dateRange
-                    NavigationLink(destination: CategoryDetailView(category: categoryTotal.category, startDate: start, endDate: end)) {
-                        HStack(spacing: 16) {
-                            Circle()
-                                .fill(categoryTotal.categoryColor.opacity(0.15))
-                                .frame(width: 40, height: 40)
-                                .overlay {
-                                    Image(systemName: categoryTotal.categoryIcon)
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(categoryTotal.categoryColor)
-                                }
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(categoryTotal.categoryName)
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                Text("\(categoryTotal.transactionCount) transactions")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Text(categoryTotal.total.formatted(with: appStateViewModel.userCurrency))
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.quaternary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 14)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    
-                    if index < topThree.count - 1 {
-                        Divider()
-                            .padding(.leading, 80)
-                            .padding(.trailing, 24)
-                    }
-                }
-            }
+            // 2. Unified Category List (Strict Mirror from Home)
+            SpendingCategoryList(
+                categories: insightsViewModel.categoryTotals.prefix(3).map { 
+                    SpendingCategoryItem(category: $0.category, amount: $0.total, transactionCount: $0.transactionCount)
+                },
+                appStateViewModel: appStateViewModel
+            )
             .padding(.vertical, 8)
         }
         .background(

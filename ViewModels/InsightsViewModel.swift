@@ -83,11 +83,9 @@ final class InsightsViewModel {
     }
 
     private func buildWeekComparison(from transactions: [Transaction]) -> WeekComparison {
-        let calendar = Calendar.current
-        let today = Date()
-        let thisStart = calendar.date(byAdding: .day, value: -6, to: today)!
-        let lastStart = calendar.date(byAdding: .day, value: -13, to: today)!
-        let lastEnd = calendar.date(byAdding: .day, value: -7, to: today)!
+        let (thisStart, _) = TimePeriod.week.dateRange
+        let lastStart = Calendar.current.date(byAdding: .day, value: -7, to: thisStart)!
+        let lastEnd = Calendar.current.date(byAdding: .day, value: -1, to: thisStart)!
 
         let thisWeek = transactions
             .filter { $0.type == .expense && $0.date >= thisStart }

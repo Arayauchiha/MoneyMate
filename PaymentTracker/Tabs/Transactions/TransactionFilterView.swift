@@ -28,9 +28,14 @@ struct TransactionFilterView: View {
                 
                 Section("Category") {
                     Picker("Category", selection: $tvm.selectedCategory) {
-                        Text("All").tag(Category?.none)
+                        Label("All Categories", systemImage: "square.grid.2x2")
+                            .tag(Category?.none)
+                        
+                        Divider()
+                        
                         ForEach(categories) { cat in
-                            Text(cat.name).tag(Category?.some(cat))
+                            Label(cat.name, systemImage: cat.iconName)
+                                .tag(Category?.some(cat))
                         }
                     }
                 }

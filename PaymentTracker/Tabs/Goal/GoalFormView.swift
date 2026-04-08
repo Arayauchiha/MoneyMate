@@ -26,6 +26,9 @@ struct GoalFormView: View {
     @State private var isAddingCustomCategory = false
     @State private var customCategoryName = ""
 
+    @State private var showSuccessAlert = false
+    @State private var successMessage = ""
+
     private var isEditing: Bool {
         if case .edit = mode { return true }
         return false
@@ -80,7 +83,9 @@ struct GoalFormView: View {
                                 .foregroundStyle(.secondary)
                         } else {
                             ForEach(categories) { cat in
-                                Toggle(cat.name, isOn: binding(for: cat))
+                                Toggle(isOn: binding(for: cat)) {
+                                    Label(cat.name, systemImage: cat.iconName)
+                                }
                             }
                         }
                         
@@ -120,9 +125,17 @@ struct GoalFormView: View {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    let isTitleValid = !title.trimmingCharacters(in: .whitespaces).isEmpty
+                    let isAmountInValid = type != .noSpend && (Decimal(string: targetAmountText.replacingOccurrences(of: ",", with: ".")) ?? 0) <= 0
+                    
                     Button("Save", role: .confirm) { save() }
-                        .disabled(title.isEmpty || (type != .noSpend && targetAmountText.isEmpty))
+                        .disabled(!isTitleValid || isAmountInValid)
                 }
+            }
+            .alert("Goal Saved!", isPresented: $showSuccessAlert) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text(successMessage)
             }
             .onAppear {
                 populateIfEditing()
@@ -165,9 +178,12 @@ struct GoalFormView: View {
 
         if let existingGoal {
             goalsViewModel.update(goal: existingGoal, title: title, targetAmount: amount, startDate: startDate, deadline: deadline, blockedCategories: blockedCategories)
+            successMessage = "Goal '\(title)' updated successfully!"
         } else {
             goalsViewModel.add(title: title, type: type, targetAmount: amount, startDate: startDate, deadline: deadline, blockedCategories: blockedCategories)
+            successMessage = "New goal '\(title)' created successfully!"
         }
-        dismiss()
+        
+        showSuccessAlert = true
     }
 }

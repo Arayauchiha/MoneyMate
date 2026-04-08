@@ -8,6 +8,8 @@ struct FundGoalView: View {
     @State private var amountText: String = ""
     @State private var showErrorAlert: Bool = false
     @State private var errorMessage: String = ""
+    @State private var showSuccessAlert: Bool = false
+    @State private var successMessage: String = ""
 
     var body: some View {
         NavigationStack {
@@ -59,10 +61,11 @@ struct FundGoalView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    let amountValue = Decimal(string: amountText.replacingOccurrences(of: ",", with: ".")) ?? 0
                     Button("Transfer") {
                         validateAndSave()
                     }
-                    .disabled(amountText.isEmpty)
+                    .disabled(amountValue <= 0)
                     .fontWeight(.bold)
                 }
             }
@@ -70,6 +73,11 @@ struct FundGoalView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
+            }
+            .alert("Funding Successful! 🎉", isPresented: $showSuccessAlert) {
+                Button("Great!") { dismiss() }
+            } message: {
+                Text(successMessage)
             }
         }
     }
@@ -104,6 +112,7 @@ struct FundGoalView: View {
         }
         
         goalsViewModel.fund(goal: goal, amount: amount)
-        dismiss()
+        successMessage = "Nice work! You've successfully funded \(amount.formatted) towards '\(goal.title)'."
+        showSuccessAlert = true
     }
 }

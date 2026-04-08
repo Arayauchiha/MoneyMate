@@ -175,6 +175,9 @@ struct ArchivedTransactionsView: View {
             alertMessage
         }
         .toolbar(appStateViewModel.isTabBarHidden ? .hidden : .visible, for: .tabBar)
+        .onDisappear {
+            exitEditMode()
+        }
     }
     
     private var alertTitle: String {

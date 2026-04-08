@@ -161,7 +161,11 @@ struct AllCategoriesView: View {
             currentStart = calendar.startOfDay(for: date)
             currentEnd = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
         case .week:
-            currentStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
+            var current = calendar.startOfDay(for: date)
+            while calendar.component(.weekday, from: current) != 2 {
+                current = calendar.date(byAdding: .day, value: -1, to: current)!
+            }
+            currentStart = current
             currentEnd = calendar.date(byAdding: .day, value: 6, to: currentStart)!
         case .month:
             currentStart = calendar.date(from: calendar.dateComponents([.year, .month], from: date))!

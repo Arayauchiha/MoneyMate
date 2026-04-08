@@ -26,6 +26,9 @@ struct AddEditTransactionView: View {
     @State private var customCategoryName: String = ""
     @State private var selectedGoal: Goal? = nil
 
+    @State private var showSuccessAlert = false
+    @State private var successMessage = ""
+
     private var isEditing: Bool {
         if case .edit = mode { return true }
         return false
@@ -78,13 +81,20 @@ struct AddEditTransactionView: View {
                     DatePicker("Date", selection: $date, in: ...Date.now, displayedComponents: .date)
                     
                     Picker("Category", selection: $category) {
-                        Text("Uncategorised").tag(Category?.none)
+                        Label("Uncategorised", systemImage: "questionmark.circle")
+                            .tag(Category?.none)
+                        
                         Divider()
+                        
                         ForEach(sortedCategories) { cat in
-                            Text(cat.name).tag(Category?.some(cat))
+                            Label(cat.name, systemImage: cat.iconName)
+                                .tag(Category?.some(cat))
                         }
+                        
                         Divider()
-                        Text("+ Create New Category").tag(Category?.some(Category(name: "__create_new__", iconName: "", colorHex: "")))
+                        
+                        Label("Create New Category", systemImage: "plus.circle")
+                            .tag(Category?.some(Category(name: "__create_new__", iconName: "star.fill", colorHex: "BDC3C7")))
                     }
                     
                     if category?.name == "__create_new__" {
@@ -116,9 +126,18 @@ struct AddEditTransactionView: View {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    let amountValue = Decimal(string: amountText.replacingOccurrences(of: ",", with: ".")) ?? 0
+                    let isTitleValid = !title.trimmingCharacters(in: .whitespaces).isEmpty
+                    let isCategoryValid = category?.name != "__create_new__" || !customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty
+                    
                     Button("Save", role: .confirm) { save() }
-                        .disabled(amountText.isEmpty || title.trimmingCharacters(in: .whitespaces).isEmpty || (category?.name == "__create_new__" && customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty))
+                        .disabled(amountValue <= 0 || !isTitleValid || !isCategoryValid)
                 }
+            }
+            .alert("Success!", isPresented: $showSuccessAlert) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text(successMessage)
             }
             .onAppear {
                 populateIfEditing()
@@ -162,9 +181,12 @@ struct AddEditTransactionView: View {
 
         if let existingTransaction {
             transactionViewModel.update(transaction: existingTransaction, amount: money, type: type, category: finalCategory, date: date, title: title, note: note, linkedGoal: selectedGoal)
+            successMessage = "Successfully updated \(title) for \(money.formatted(with: appStateViewModel.userCurrency))"
         } else {
             transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, title: title, note: note, linkedGoal: selectedGoal)
+            successMessage = "Successfully added \(title) for \(money.formatted(with: appStateViewModel.userCurrency))"
         }
-        dismiss()
+        
+        showSuccessAlert = true
     }
 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Charts
 
 enum DetailResolution: String, CaseIterable, Identifiable {
     case day = "Day"
@@ -58,42 +59,61 @@ struct CategoryDetailView: View {
         }
     }
     
+    @Environment(AppStateViewModel.self) private var appStateViewModel
+    @State private var isChartAnimated = false
+
+    private var chartData: [DailyTotal] {
+        let calendar = Calendar.current
+        let range = calendar.dateComponents([.day], from: currentStart, to: currentEnd).day ?? 1
+        let iterations = max(1, range + 1)
+        
+        return (0..<iterations).map { offset -> DailyTotal in
+            let date = calendar.date(byAdding: .day, value: offset, to: currentStart)!
+            let start = calendar.startOfDay(for: date)
+            let end = calendar.date(byAdding: .day, value: 1, to: start)!
+            
+            let total = filteredTransactions
+                .filter { $0.date >= start && $0.date < end }
+                .reduce(Money.zero) { $0 + $1.money }
+            
+            return DailyTotal(date: date, total: total)
+        }
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                // Header Card
-                VStack(spacing: 20) {
+                // MARK: - Hero Header
+                VStack(spacing: 24) {
                     HStack(spacing: 20) {
                         Circle()
                             .fill((isDateSummary ? .blue : (category?.color ?? .gray)).gradient)
-                            .frame(width: 72, height: 72)
+                            .frame(width: 64, height: 64)
                             .overlay {
                                 Image(systemName: isDateSummary ? resolution.icon : (category?.iconName ?? "questionmark.circle"))
-                                    .font(.system(size: 32, weight: .bold))
+                                    .font(.system(size: 28, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .shadow(color: (isDateSummary ? .blue : (category?.color ?? .gray)).opacity(0.3), radius: 10, x: 0, y: 5)
                         
                         VStack(alignment: .leading, spacing: 4) {
                             Text(isDateSummary ? (resolution == .month ? "Monthly Summary" : resolution == .week ? "Weekly Summary" : "Daily Summary") : (category?.name ?? "Other"))
-                                .font(.title)
+                                .font(.title2)
                                 .fontWeight(.black)
-                                .textCase(nil)
-                                .foregroundStyle(.primary)
+                                .foregroundStyle(FintechDesign.primaryText)
                             
                             Button {
                                 isPeriodPickerPresented = true
                             } label: {
                                 HStack(spacing: 6) {
-                                    Image(systemName: resolution.icon)
+                                    Image(systemName: "calendar")
                                         .font(.caption)
                                     Text(headerDateString)
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
+                                        .font(.caption)
+                                        .fontWeight(.bold)
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
-                                .background(Color.blue.opacity(0.12), in: Capsule())
+                                .background(.blue.opacity(0.1), in: Capsule())
                                 .foregroundStyle(.blue)
                             }
                             .buttonStyle(.plain)
@@ -102,34 +122,100 @@ struct CategoryDetailView: View {
                     }
                     
                     HStack(spacing: 12) {
-                        statCard(
-                            title: "Total Outflow",
-                            value: Money(filteredTransactions.reduce(0) { $0 + $1.money.amount }).formatted,
-                            icon: "arrow.up.circle.fill",
-                            color: .red
-                        )
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Total Spend")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            Text(Money(filteredTransactions.reduce(0) { $0 + $1.money.amount }).formatted(with: appStateViewModel.userCurrency))
+                                .font(.title3.bold())
+                                .foregroundStyle(FintechDesign.primaryText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(FintechDesign.adaptiveColor("F5F5F7", "FFFFFF").opacity(0.05), in: RoundedRectangle(cornerRadius: 20))
                         
-                        statCard(
-                            title: "Transactions",
-                            value: "\(filteredTransactions.count)",
-                            icon: "list.bullet.circle.fill",
-                            color: .blue
-                        )
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Transactions")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                            let count = filteredTransactions.count
+                            Text("\(count) \(count == 1 ? "Transaction" : "Transactions")")
+                                .font(.title3.bold())
+                                .foregroundStyle(FintechDesign.primaryText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(FintechDesign.adaptiveColor("F5F5F7", "FFFFFF").opacity(0.05), in: RoundedRectangle(cornerRadius: 20))
                     }
                 }
                 .padding(24)
                 .background(
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                        .shadow(color: .black.opacity(0.04), radius: 20, x: 0, y: 10)
+                    FintechDesign.CardBackground()
+                        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
                 )
                 
-                // Transaction List
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Transaction Log")
+                // MARK: - Trend Analysis
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Spending Trend")
                         .font(.headline)
-                        .padding(.horizontal, 8)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(FintechDesign.primaryText)
+                    
+                    Chart {
+                        ForEach(chartData) { data in
+                            BarMark(
+                                x: .value("Day", data.dayLabel),
+                                y: .value("Amount", isChartAnimated ? data.total.amount : 0)
+                            )
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [
+                                        (isDateSummary ? .blue : (category?.color ?? .blue)),
+                                        (isDateSummary ? .blue : (category?.color ?? .blue)).opacity(0.6)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .cornerRadius(6)
+                        }
+                    }
+                    .chartYAxis(.hidden)
+                    .chartXAxis {
+                        AxisMarks { value in
+                            AxisValueLabel()
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .chartYScale(domain: 0...(chartData.map { $0.total.amount }.max() ?? 100))
+                    .frame(height: 180)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isChartAnimated)
+                }
+                .padding(24)
+                .background(
+                    FintechDesign.CardBackground()
+                        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                )
+                .onAppear {
+                    isChartAnimated = false
+                    withAnimation(.easeInOut(duration: 0.8).delay(0.1)) {
+                        isChartAnimated = true
+                    }
+                }
+                .onChange(of: currentStart) { _, _ in
+                    isChartAnimated = false
+                    withAnimation(.easeInOut(duration: 0.8)) {
+                        isChartAnimated = true
+                    }
+                }
+
+                // MARK: - Activity Log
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Activity History")
+                        .font(.headline)
+                        .foregroundStyle(FintechDesign.primaryText)
                     
                     if filteredTransactions.isEmpty {
                         VStack(spacing: 12) {
@@ -143,23 +229,26 @@ struct CategoryDetailView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
                         .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            RoundedRectangle(cornerRadius: 32, style: .continuous)
                                 .strokeBorder(.quaternary, style: StrokeStyle(lineWidth: 1, dash: [4]))
                         )
                     } else {
-                        ForEach(filteredTransactions) { txn in
-                            TransactionCard(transaction: txn) {
-                                transactionViewModel.presentEdit(txn)
+                        VStack(spacing: 12) {
+                            ForEach(filteredTransactions) { txn in
+                                TransactionCard(transaction: txn) {
+                                    transactionViewModel.presentEdit(txn)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.bottom, 40)
             }
             .padding()
         }
         .navigationTitle(isDateSummary ? "Spending Breakdown" : (category?.name ?? "Other"))
         .navigationBarTitleDisplayMode(.inline)
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(FintechDesign.Background())
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -266,17 +355,26 @@ struct CategoryDetailView: View {
     }
     
     private func updatePeriod(from date: Date) {
+        isChartAnimated = false // Reset animation
         let calendar = Calendar.current
         switch resolution {
         case .day:
             currentStart = calendar.startOfDay(for: date)
             currentEnd = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
         case .week:
-            currentStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
+            var current = calendar.startOfDay(for: date)
+            while calendar.component(.weekday, from: current) != 2 {
+                current = calendar.date(byAdding: .day, value: -1, to: current)!
+            }
+            currentStart = current
             currentEnd = calendar.date(byAdding: .day, value: 6, to: currentStart)!
         case .month:
             currentStart = calendar.date(from: calendar.dateComponents([.year, .month], from: date))!
             currentEnd = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: currentStart)!
+        }
+        
+        withAnimation(.easeInOut(duration: 0.8)) {
+            isChartAnimated = true
         }
     }
 }
