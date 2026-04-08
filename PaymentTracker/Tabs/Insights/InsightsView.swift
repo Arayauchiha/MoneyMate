@@ -24,8 +24,7 @@ struct InsightsView: View {
                     summarySection
                     
                     if !insightsViewModel.categoryTotals.isEmpty {
-                        categoryBreakdownChart
-                        topCategoriesList
+                        spendingAnalysisCard
                     } else {
                         emptyState
                     }
@@ -130,69 +129,152 @@ struct InsightsView: View {
         )
     }
     
-    private var categoryBreakdownChart: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Spending Breakdown")
-                .font(.headline)
-            
-            Chart(insightsViewModel.categoryTotals) { total in
-                SectorMark(
-                    angle: .value("Amount", total.total.amount),
-                    innerRadius: .ratio(0.6),
-                    angularInset: 1.5
-                )
-                .cornerRadius(4)
-                .foregroundStyle(by: .value("Category", total.categoryName))
-                .opacity(selectedPieAmount == nil ? 1.0 : (pieIsSelected(total) ? 1.0 : 0.5))
-            }
-            .chartAngleSelection(value: $selectedPieAmount)
-            .chartOverlay { proxy in
-                GeometryReader { _ in
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture { location in
-                            let angle = proxy.angle(at: location)
-                            if let amount = proxy.value(atAngle: angle, as: Decimal.self) {
-                                selectedPieAmount = amount
-                            }
-                        }
+    private var spendingAnalysisCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // New Unified Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Spending Analysis")
+                        .font(.headline)
+                        .foregroundStyle(FintechDesign.primaryText)
+                    Text(insightsViewModel.selectedPeriod.label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-            }
-            .chartForegroundStyleScale(
-                domain: insightsViewModel.categoryTotals.map(\.categoryName),
-                range: insightsViewModel.categoryTotals.map(\.categoryColor)
-            )
-            .frame(height: 220)
-            
-            if let selectedPieAmount, let cat = pieCategory(for: selectedPieAmount) {
-                let (start, end) = insightsViewModel.selectedPeriod.dateRange
-                NavigationLink(destination: CategoryDetailView(category: cat.category, startDate: start, endDate: end)) {
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 8) {
-                            Text("\(cat.categoryName): \(cat.total.formatted(with: appStateViewModel.userCurrency))")
-                                .font(.subheadline).bold()
-                            Image(systemName: "chevron.right")
-                                .font(.caption2).bold()
-                        }
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 16)
-                        .background(Color.blue.opacity(0.1), in: Capsule())
-                        .foregroundStyle(.blue)
-                        Spacer()
+                Spacer()
+                
+                // Unified "View Details" Navigation
+                NavigationLink(destination: AllCategoriesView()) {
+                    HStack(spacing: 4) {
+                        Text("View Details")
+                            .font(.caption.bold())
+                            .foregroundStyle(.blue)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.bold())
+                            .foregroundStyle(.blue)
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.blue.opacity(0.1), in: Capsule())
                 }
                 .buttonStyle(.plain)
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 24)
+            .padding(.bottom, 16)
+            
+            // 1. Donut Chart Component
+            ZStack {
+                Chart(insightsViewModel.categoryTotals, id: \.id) { total in
+                    SectorMark(
+                        angle: .value("Amount", total.total.amount),
+                        innerRadius: .ratio(0.65),
+                        angularInset: 2.0
+                    )
+                    .cornerRadius(8)
+                    .foregroundStyle(total.categoryColor)
+                    .opacity(selectedPieAmount == nil ? 1.0 : (pieIsSelected(total) ? 1.0 : 0.4))
+                }
+                .chartAngleSelection(value: $selectedPieAmount)
+                .frame(height: 220)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: insightsViewModel.categoryTotals)
+                
+                // Center Overlay
+                VStack(spacing: 2) {
+                    if let selectedPieAmount, let cat = pieCategory(for: selectedPieAmount) {
+                        Text(cat.categoryName)
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Text(cat.total.formatted(with: appStateViewModel.userCurrency))
+                            .font(.system(.title2, design: .rounded))
+                            .fontWeight(.heavy)
+                            .foregroundStyle(cat.categoryColor)
+                    } else {
+                        Text("Total Spend")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Text(insightsViewModel.totalForPeriod.formatted(with: appStateViewModel.userCurrency))
+                            .font(.system(.title2, design: .rounded))
+                            .fontWeight(.heavy)
+                            .foregroundStyle(FintechDesign.primaryText)
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+            
+            Divider()
+                .padding(.horizontal, 24)
+            
+            // Sub-header for the list
+            Text("Top Categories")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+            
+            // 2. Integrated Categories List
+            VStack(alignment: .leading, spacing: 0) {
+                let topThree = insightsViewModel.categoryTotals.prefix(3)
+                ForEach(Array(topThree.enumerated()), id: \.element.id) { index, categoryTotal in
+                    let (start, end) = insightsViewModel.selectedPeriod.dateRange
+                    NavigationLink(destination: CategoryDetailView(category: categoryTotal.category, startDate: start, endDate: end)) {
+                        HStack(spacing: 16) {
+                            Circle()
+                                .fill(categoryTotal.categoryColor.opacity(0.15))
+                                .frame(width: 40, height: 40)
+                                .overlay {
+                                    Image(systemName: categoryTotal.categoryIcon)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(categoryTotal.categoryColor)
+                                }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(categoryTotal.categoryName)
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                Text("\(categoryTotal.transactionCount) transactions")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Text(categoryTotal.total.formatted(with: appStateViewModel.userCurrency))
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.quaternary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    
+                    if index < topThree.count - 1 {
+                        Divider()
+                            .padding(.leading, 80)
+                            .padding(.trailing, 24)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
         }
-        .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
+            FintechDesign.CardBackground()
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 32)
+                        .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                )
         )
     }
-
+    
     private func pieIsSelected(_ total: CategoryTotal) -> Bool {
         guard let selected = selectedPieAmount else { return false }
         return pieCategory(for: selected)?.id == total.id
@@ -207,100 +289,57 @@ struct InsightsView: View {
         return nil
     }
     
-    private var topCategoriesList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Top Categories")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if !insightsViewModel.categoryTotals.isEmpty {
-                    NavigationLink {
-                        AllCategoriesView()
-                    } label: {
-                        Text("See All")
-                            .font(.subheadline).bold()
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            
-            Divider()
-                .padding(.leading, 64)
-            
-            let topThree = insightsViewModel.categoryTotals.prefix(3)
-            ForEach(Array(topThree.enumerated()), id: \.element.id) { index, categoryTotal in
-                let (start, end) = insightsViewModel.selectedPeriod.dateRange
-                NavigationLink(destination: CategoryDetailView(category: categoryTotal.category, startDate: start, endDate: end)) {
-                    HStack(spacing: 16) {
-                        Circle()
-                            .fill(categoryTotal.categoryColor.opacity(0.2))
-                            .frame(width: 40, height: 40)
-                            .overlay {
-                                Image(systemName: categoryTotal.categoryIcon)
-                                    .foregroundStyle(categoryTotal.categoryColor)
-                            }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(categoryTotal.categoryName)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Text("\(categoryTotal.transactionCount) transactions")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Text(categoryTotal.total.formatted(with: appStateViewModel.userCurrency))
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                        
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.quaternary)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                
-                if index < topThree.count - 1 {
-                    Divider()
-                        .padding(.leading, 64)
-                }
-            }
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
-        )
-    }
+    @State private var selectedComparisonDate: String?
     
     private var monthlyTrendChart: some View {
-        NavigationLink(destination: TrendDetailView(daily: insightsViewModel.dailyTrend, weekly: insightsViewModel.weeklyTrend, monthly: insightsViewModel.monthlyTrend)) {
-            VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header Zone (Dedicated Navigation)
+            NavigationLink {
+                TrendDetailView(
+                    daily: insightsViewModel.dailyTrend,
+                    weekly: insightsViewModel.weeklyTrend,
+                    monthly: insightsViewModel.monthlyTrend
+                )
+            } label: {
                 HStack {
-                    Text("Historical Trends")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Historical Trends")
+                            .font(.headline)
+                            .foregroundStyle(FintechDesign.primaryText)
+                        Text("Monthly spending overview")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+                    
+                    // Simple, clean See Detail/Chevron
+                    HStack(spacing: 4) {
+                        Text("View Details")
+                            .font(.caption.bold())
+                            .foregroundStyle(.blue)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.bold())
+                            .foregroundStyle(.blue)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.blue.opacity(0.1), in: Capsule())
                 }
-                
-                Chart(insightsViewModel.monthlyTrend) { trend in
-                    LineMark(
+                .padding(.horizontal, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            
+            // Chart Zone (Dedicated Interaction, No Navigation Lag)
+            Chart {
+                ForEach(insightsViewModel.monthlyTrend) { trend in
+                    // Pulse Pillar for solo month visibility
+                    BarMark(
                         x: .value("Month", trend.label),
                         y: .value("Amount", trend.total.amount)
                     )
-                    .symbol(.circle)
-                    .foregroundStyle(Color.blue)
+                    .foregroundStyle(FintechDesign.brandGradient.opacity(0.1))
+                    .cornerRadius(20)
                     
                     AreaMark(
                         x: .value("Month", trend.label),
@@ -308,29 +347,93 @@ struct InsightsView: View {
                     )
                     .foregroundStyle(
                         LinearGradient(
-                            colors: [.blue.opacity(0.3), .blue.opacity(0.0)],
+                            colors: [Color(hex: "06B6D4").opacity(0.3), Color(hex: "06B6D4").opacity(0.0)],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
+                    .interpolationMethod(.monotone)
+                    
+                    LineMark(
+                        x: .value("Month", trend.label),
+                        y: .value("Amount", trend.total.amount)
+                    )
+                    .foregroundStyle(FintechDesign.brandGradient)
+                    .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                    .interpolationMethod(.monotone)
+                    
+                    PointMark(
+                        x: .value("Month", trend.label),
+                        y: .value("Amount", trend.total.amount)
+                    )
+                    .foregroundStyle(Color(hex: "06B6D4"))
+                    .symbolSize(80)
+                    .annotation(position: .top) {
+                        if insightsViewModel.monthlyTrend.count == 1 {
+                            Text(trend.total.formatted(with: appStateViewModel.userCurrency))
+                                .font(.system(.caption, design: .rounded).bold())
+                                .foregroundStyle(FintechDesign.primaryText)
+                                .padding(.bottom, 8)
+                        }
+                    }
                 }
-                .chartYAxis {
-                    AxisMarks(position: .leading)
-                }
-                .frame(height: 180)
                 
-                Text("Tap for monthly & weekly breakdown")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let selectedComparisonDate, let selectedTrend = insightsViewModel.monthlyTrend.first(where: { $0.label == selectedComparisonDate }) {
+                    RuleMark(x: .value("Selected", selectedComparisonDate))
+                        .foregroundStyle(FintechDesign.adaptiveColor("1A1A1A", "FFFFFF").opacity(0.1))
+                        .zIndex(-1)
+                        .annotation(position: .top, spacing: 10) {
+                            VStack(spacing: 4) {
+                                Text(selectedTrend.label)
+                                    .font(.system(size: 8, weight: .black))
+                                    .textCase(.uppercase)
+                                    .foregroundStyle(.secondary)
+                                
+                                Text(selectedTrend.total.formatted(with: appStateViewModel.userCurrency))
+                                    .font(.system(.caption, design: .rounded))
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(FintechDesign.primaryText)
+                            }
+                            .padding(8)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                            )
+                        }
+                }
             }
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                    .shadow(color: .black.opacity(0.03), radius: 8, x: 0, y: 2)
-            )
+            .chartXSelection(value: $selectedComparisonDate)
+            .chartYAxis(.hidden)
+            .chartXAxis {
+                AxisMarks { value in
+                    AxisValueLabel()
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(height: 200)
         }
-        .buttonStyle(.plain)
+        .padding(24)
+        .background(
+            FintechDesign.CardBackground()
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 32)
+                        .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                )
+        )
+    }
+    
+    private struct LegendItem: View {
+        let label: String
+        let color: Color
+        var body: some View {
+            HStack(spacing: 4) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                Text(label).font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+            }
+        }
     }
     
     private var emptyState: some View {

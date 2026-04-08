@@ -76,22 +76,6 @@ struct ArchivedTransactionsView: View {
                                 .frame(height: 140)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
-                        } header: {
-                            Text("Recently Deleted")
-                                .font(.subheadline)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.secondary)
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 16)
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .onTapGesture {
-                                    if editMode == .inactive && !archivedTransactions.isEmpty {
-                                        withAnimation {
-                                            editMode = .active
-                                            appStateViewModel.isTabBarHidden = true
-                                        }
-                                    }
-                                }
                         }
                     }
                     .listStyle(.plain)

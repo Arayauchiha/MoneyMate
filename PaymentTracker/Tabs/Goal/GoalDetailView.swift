@@ -58,12 +58,6 @@ struct GoalDetailView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     headerSection
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                                .shadow(color: Color.black.opacity(0.04), radius: 15, x: 0, y: 10)
-                        )
                     
                     if !chartData.isEmpty {
                         chartSection
@@ -71,8 +65,11 @@ struct GoalDetailView: View {
 
                     VStack(alignment: .leading, spacing: 16) {
                         Text(goal.type == .savings ? "Funding History" : "Affecting Transactions")
-                            .font(.headline)
+                            .font(.system(size: 13, weight: .black))
+                            .textCase(.uppercase)
+                            .tracking(1)
                             .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
                             
                         if associatedTransactions.isEmpty {
                             emptyState
@@ -92,22 +89,30 @@ struct GoalDetailView: View {
                                                         selectedHistoryTransactions.insert(txn.id)
                                                     }
                                                 }
-                                                .padding(.leading, 16)
+                                                .padding(.leading, 24)
                                         }
                                         
                                         TransactionRow(transaction: txn)
-                                            .padding(.vertical, 12)
-                                            .padding(.horizontal, isHistoryEditingMode ? 8 : 16)
+                                            .padding(.vertical, 14)
+                                            .padding(.horizontal, isHistoryEditingMode ? 12 : 24)
                                     }
+                                    .contentShape(Rectangle())
                                     
                                     if index < associatedTransactions.count - 1 {
-                                        Divider().padding(.leading, isHistoryEditingMode ? 104 : 72)
+                                        Divider()
+                                            .padding(.leading, isHistoryEditingMode ? 104 : 80)
+                                            .padding(.trailing, 24)
                                     }
                                 }
                             }
+                            .padding(.vertical, 8)
                             .background(
-                                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                                FintechDesign.CardBackground()
+                                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 32)
+                                            .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                                    )
                             )
                         }
                     }
@@ -244,8 +249,11 @@ struct GoalDetailView: View {
     private var chartSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Progress Trend")
-                .font(.headline)
+                .font(.system(size: 13, weight: .black))
+                .textCase(.uppercase)
+                .tracking(1)
                 .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
             
             Chart {
                 ForEach(chartData) { point in
@@ -301,18 +309,21 @@ struct GoalDetailView: View {
                 }
             }
             .chartXAxis {
-                AxisMarks(preset: .extended, values: .automatic) { value in
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
                     AxisGridLine()
-                    AxisValueLabel()
+                    AxisValueLabel(format: .dateTime.month().day())
                         .font(.system(size: 10, weight: .bold))
                 }
             }
             .frame(height: 250)
-            .padding(20)
+            .padding(24)
             .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.03), radius: 12, x: 0, y: 6)
+                FintechDesign.CardBackground()
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 32)
+                    .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
             )
             
             HStack(spacing: 20) {
@@ -330,71 +341,119 @@ struct GoalDetailView: View {
     }
     
     private var headerSection: some View {
-        VStack(spacing: 20) {
-            HStack {
+        let goalStatus = goalsViewModel.status(for: goal)
+        let goalColor = goalStatus.color
+        
+        return VStack(spacing: 24) {
+            // Master Header Info
+            HStack(alignment: .top) {
+                ZStack {
+                    Circle()
+                        .fill(goalColor.opacity(0.1))
+                        .frame(width: 60, height: 60)
+                    Image(systemName: goal.type.systemImage)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(goalColor)
+                }
+                
                 VStack(alignment: .leading, spacing: 6) {
                     Text(goal.title)
                         .font(.title2)
                         .fontWeight(.black)
+                        .foregroundStyle(FintechDesign.primaryText)
                     Text(goal.type.label)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
+                        .tracking(1)
                 }
+                
                 Spacer()
                 
-                let status = goalsViewModel.status(for: goal)
-                Label(status.label, systemImage: status.systemImage)
-                    .font(.caption)
-                    .fontWeight(.bold)
+                Text(goalStatus.label)
+                    .font(.system(size: 10, weight: .black))
+                    .textCase(.uppercase)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(status.color.opacity(0.15), in: Capsule())
-                    .foregroundStyle(status.color)
+                    .padding(.vertical, 8)
+                    .background(goalColor.opacity(0.1), in: Capsule())
+                    .foregroundStyle(goalColor)
             }
             
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
+            // Stats Row
+            HStack(spacing: 12) {
+                DetailStat(title: "Deadline", value: goal.deadline.formatted(.dateTime.day().month().year()))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                
+                DetailStat(title: "Time Left", value: "\(goal.daysRemaining) days")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+            }
+            
+            // Progress Center
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .lastTextBaseline) {
                     Text(goalsViewModel.progressLabel(for: goal, symbol: appStateViewModel.userCurrency))
-                        .font(.headline)
+                        .font(.system(.title3, design: .rounded).bold())
+                        .foregroundStyle(FintechDesign.primaryText)
+                    
                     Spacer()
+                    
                     Text("\(Int(goalsViewModel.progressFraction(for: goal) * 100))%")
-                        .font(.subheadline).bold()
-                        .foregroundStyle(.blue)
+                        .font(.system(.subheadline, design: .rounded).bold())
+                        .foregroundStyle(goalColor)
                 }
                 
-                ProgressView(value: goalsViewModel.progressFraction(for: goal))
-                    .tint(goalsViewModel.status(for: goal).color)
-                    .scaleEffect(x: 1, y: 1.5, anchor: .center)
-            }
-            
-            HStack(alignment: .center) {
-                HStack(spacing: 20) {
-                    DetailStat(title: "Deadline", value: goal.deadline.formatted(.dateTime.day().month().year()))
-                    DetailStat(title: "Time Left", value: "\(goal.daysRemaining) days")
+                // Custom Liquid Progress
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.secondary.opacity(0.1))
+                        
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [goalColor, goalColor.opacity(0.6)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geo.size.width * CGFloat(goalsViewModel.progressFraction(for: goal)))
+                    }
                 }
+                .frame(height: 10)
                 
-                Spacer()
-                
-                if goal.type == .savings && goalsViewModel.status(for: goal) != .achieved {
+                if goal.type == .savings && goalStatus != .achieved {
                     Button {
                         isFundingPresented = true
                     } label: {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Image(systemName: "plus.circle.fill")
-                            Text("Fund Goal")
+                            Text("Add Funds")
                         }
-                        .font(.subheadline).bold()
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.blue)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(goalColor, in: RoundedRectangle(cornerRadius: 16))
                         .foregroundStyle(.white)
-                        .clipShape(Capsule())
-                        .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                        .shadow(color: goalColor.opacity(0.3), radius: 10, x: 0, y: 5)
                     }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
                 }
             }
         }
+        .padding(24)
+        .background(
+            FintechDesign.CardBackground()
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 32)
+                .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+        )
     }
     
     private var emptyState: some View {
@@ -403,13 +462,14 @@ struct GoalDetailView: View {
                 .font(.largeTitle)
                 .foregroundStyle(.tertiary)
             Text("No activity found for this goal.")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.quaternary, style: StrokeStyle(lineWidth: 1, dash: [4]))
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
         )
     }
 }

@@ -13,68 +13,67 @@ struct TransactionCard: View {
         guard transaction.modelContext != nil else { return AnyView(EmptyView()) }
         return AnyView(
             HStack(spacing: 16) {
-            // Modern Glassmorphic Icon
-            ZStack {
-                Circle()
-                    .fill(transaction.type.color.opacity(0.12))
+                // Modern Fintech Icon with Gradient background
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(transaction.type == .expense ? FintechDesign.expenseGradient.opacity(0.15) : FintechDesign.incomeGradient.opacity(0.15))
+                    
+                    Image(systemName: transaction.type.systemImage)
+                        .foregroundStyle(transaction.type == .expense ? FintechDesign.expenseGradient : FintechDesign.incomeGradient)
+                        .font(.system(size: 18, weight: .bold))
+                }
+                .frame(width: 48, height: 48)
                 
-                Circle()
-                    .stroke(transaction.type.color.opacity(0.1), lineWidth: 1.5)
-                
-                Image(systemName: transaction.type.systemImage)
-                    .foregroundStyle(transaction.type.color.gradient)
-                    .font(.system(size: 18, weight: .bold))
-            }
-            .frame(width: 48, height: 48)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                if transaction.type == .transfer, let goal = transaction.linkedGoal {
-                    Text("Funded: \(goal.title)")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                } else {
-                    Text(transaction.title.trimmingCharacters(in: .whitespaces).isEmpty ? (transaction.category?.name ?? "Miscellaneous") : transaction.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(transaction.title.isEmpty ? (transaction.category?.name ?? "Miscellaneous") : transaction.title)
+                        .font(.system(.subheadline, design: .rounded))
+                        .fontWeight(.bold)
+                        .foregroundStyle(FintechDesign.adaptiveColor("1A1A1A", "FFFFFF"))
+                    
+                    if let category = transaction.category {
+                        Text(category.name)
+                            .font(.system(size: 10, weight: .heavy))
+                            .foregroundStyle(category.color)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(category.color.opacity(0.1), in: Capsule())
+                    }
                 }
                 
-                if let category = transaction.category {
-                    let tagColor = category.color
-                    Text(category.name)
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(transaction.formattedAmount)
+                        .font(.system(.subheadline, design: .rounded))
+                        .fontWeight(.bold)
+                        .foregroundStyle(transaction.type == .expense ? FintechDesign.adaptiveColor("1A1A1A", "FFFFFF") : Color(hex: "10B981"))
+                    
+                    Text(transaction.date.formatted(.dateTime.hour().minute()))
                         .font(.caption2)
-                        .fontWeight(.black)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(tagColor.opacity(0.12), in: Capsule())
-                        .foregroundStyle(tagColor)
+                        .foregroundStyle(FintechDesign.adaptiveColor("666666", "999999"))
                 }
             }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("\(appStateViewModel.userCurrency)\(transaction.money.formattedPlain)")
-                    .font(.headline)
-                    .bold()
-                    .foregroundStyle(transaction.type == .expense ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.green))
-                Text(transaction.date.formatted(.dateTime.hour().minute()))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            .padding(16)
+            .background(
+                FintechDesign.CardBackground()
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(
+                                FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.15),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .scaleEffect(isPressed ? 0.97 : 1.0)
+            .onTapGesture {
+                action?()
             }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: .black.opacity(isPressed ? 0.01 : 0.03), radius: isPressed ? 2 : 10, x: 0, y: isPressed ? 1 : 5)
-        )
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .onTapGesture {
-            action?()
-        }
-        .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
+            .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, pressing: { pressing in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isPressed = pressing
+                }
+            }, perform: {})
         )
     }
 }
@@ -87,42 +86,35 @@ struct TransactionRow: View {
         guard transaction.modelContext != nil else { return AnyView(EmptyView()) }
         return AnyView(
             HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(transaction.type.color.opacity(0.1))
-                Image(systemName: transaction.type.systemImage)
-                    .foregroundStyle(transaction.type.color)
-                    .font(.title3)
-            }
-            .frame(width: 44, height: 44)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                if transaction.type == .transfer, let goal = transaction.linkedGoal {
-                    Text("Funded: \(goal.title)")
-                        .font(.subheadline)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(transaction.type == .expense ? FintechDesign.expenseGradient.opacity(0.1) : FintechDesign.incomeGradient.opacity(0.1))
+                    Image(systemName: transaction.type.systemImage)
+                        .foregroundStyle(transaction.type == .expense ? FintechDesign.expenseGradient : FintechDesign.incomeGradient)
+                        .font(.system(size: 16, weight: .bold))
+                }
+                .frame(width: 44, height: 44)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(transaction.title.isEmpty ? (transaction.category?.name ?? "Miscellaneous") : transaction.title)
+                        .font(.system(.subheadline, design: .rounded))
                         .fontWeight(.medium)
-                        .foregroundStyle(.primary)
-                } else {
-                    Text(transaction.title.trimmingCharacters(in: .whitespaces).isEmpty ? (transaction.category?.name ?? "Miscellaneous") : transaction.title)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(FintechDesign.adaptiveColor("1A1A1A", "FFFFFF"))
+                    
+                    Text(transaction.date, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(FintechDesign.adaptiveColor("666666", "999999"))
                 }
                 
-                Text(transaction.date, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Spacer()
+                
+                Text(transaction.formattedAmount)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundStyle(transaction.type == .expense ? FintechDesign.adaptiveColor("1A1A1A", "FFFFFF") : Color(hex: "10B981"))
             }
-            
-            Spacer()
-            
-            Text("\(appStateViewModel.userCurrency)\(transaction.money.formattedPlain)")
-                .font(.subheadline)
-                .fontWeight(.bold)
-                .foregroundStyle(transaction.type.color)
-        }
-        .padding(16)
-        .contentShape(Rectangle())
+            .padding(16)
+            .contentShape(Rectangle())
         )
     }
 }

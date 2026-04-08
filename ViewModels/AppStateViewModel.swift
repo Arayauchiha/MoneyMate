@@ -5,6 +5,7 @@ import LocalAuthentication
 enum AppTab: String, Hashable, CaseIterable {
     case home
     case transactions
+    case add
     case goals
     case insights
 }
@@ -29,7 +30,11 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 @Observable @MainActor
 final class AppStateViewModel {
     // Persistent Preferences
-    @ObservationIgnored @AppStorage("user_name") var userName: String = "User"
+    @ObservationIgnored @AppStorage("user_name") private var _userName: String = "User"
+    var userName: String {
+        get { _userName }
+        set { _userName = newValue }
+    }
     @ObservationIgnored @AppStorage("is_biometrics_enabled") var isBiometricsEnabled: Bool = false
     
     var appearance: AppAppearance {
@@ -58,7 +63,14 @@ final class AppStateViewModel {
     }
     
     // UI State
-    var selectedTab: AppTab = .home
+    var selectedTab: AppTab = .home {
+        didSet {
+            if selectedTab != .add {
+                previousTab = oldValue
+            }
+        }
+    }
+    var previousTab: AppTab = .home
     var isTabBarHidden: Bool = false
     var isAddTransactionPresented: Bool = false
     var isAddEditGoalPresented: Bool = false

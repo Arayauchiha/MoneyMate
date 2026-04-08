@@ -16,6 +16,7 @@ final class InsightsViewModel {
     var monthlyTrend: [TrendTotal] = []
     var weeklyTrend: [TrendTotal] = []
     var dailyTrend: [TrendTotal] = []
+    var monthlyComparisonTrends: [ComparisonTrend] = []
     var daysInPeriod: Int = 1
 
     var isLoading: Bool = false
@@ -57,6 +58,7 @@ final class InsightsViewModel {
             monthlyTrend = buildMonthlyTrend(from: activeTxns)
             weeklyTrend = buildWeeklyTrend(from: activeTxns)
             dailyTrend = buildDailyTrend(from: activeTxns)
+            monthlyComparisonTrends = buildMonthlyComparisonTrends(from: activeTxns)
 
         } catch {
             self.error = error.localizedDescription
@@ -161,13 +163,58 @@ final class InsightsViewModel {
             }
             .sorted { $0.date < $1.date }
     }
+    private func buildMonthlyComparisonTrends(from transactions: [Transaction]) -> [ComparisonTrend] {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+
+        let grouped = Dictionary(
+            grouping: transactions,
+            by: { calendar.dateComponents([.year, .month], from: $0.date) }
+        )
+
+        return grouped
+            .map { components, txns -> ComparisonTrend in
+                let date = calendar.date(from: components) ?? Date()
+                let income = txns.filter { $0.type == .income }.reduce(Money.zero) { $0 + $1.money }
+                let expense = txns.filter { $0.type == .expense }.reduce(Money.zero) { $0 + $1.money }
+                return ComparisonTrend(label: formatter.string(from: date), income: income, expense: expense, date: date)
+            }
+            .sorted { $0.date < $1.date }
+            .suffix(6)
+            .map(\.self)
+    }
 }
 
-struct CategoryTotal: Identifiable {
+struct ComparisonTrend: Identifiable, Hashable {
     let id = UUID()
+    let label: String
+    let income: Money
+    let expense: Money
+    let date: Date
+    
+    var savings: Money {
+        income - expense
+    }
+}
+
+struct CategoryTotal: Identifiable, Equatable {
+    let id: UUID
     let category: Category?
     let total: Money
     let transactionCount: Int
+
+    init(category: Category?, total: Money, transactionCount: Int) {
+        self.category = category
+        self.total = total
+        self.transactionCount = transactionCount
+        // Stable ID based on category; 0000... for "Other"
+        self.id = category?.id ?? UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    }
+
+    static func == (lhs: CategoryTotal, rhs: CategoryTotal) -> Bool {
+        lhs.id == rhs.id && lhs.total == rhs.total && lhs.transactionCount == rhs.transactionCount
+    }
 
     var categoryName: String {
         category?.name ?? "Miscellaneous"

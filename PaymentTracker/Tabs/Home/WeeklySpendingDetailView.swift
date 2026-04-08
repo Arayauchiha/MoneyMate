@@ -17,14 +17,13 @@ struct WeeklySpendingDetailView: View {
         _allTransactions = Query(descriptor)
     }
 
-    private var weeklyTransactions: [Transaction] {
-        let calendar = Calendar.current
+    var weeklyTransactions: [Transaction] {
         let today = Date()
-        guard let start = calendar.date(byAdding: .day, value: -6, to: today) else { return [] }
-        return allTransactions.filter { $0.date >= start && $0.date <= today && $0.type == .expense }
+        let start = Calendar.current.date(byAdding: .day, value: -6, to: today) ?? today
+        return allTransactions.filter { $0.date >= start && !$0.isArchived && $0.type == .expense }
     }
     
-    private var categoriesInWeek: [(category: Category?, amount: Money)] {
+    var categoriesInWeek: [(category: Category?, amount: Money)] {
         let grouped = Dictionary(grouping: weeklyTransactions, by: { $0.category })
         return grouped.map { ($0.key, $0.value.reduce(Money.zero) { $0 + $1.money }) }
             .sorted { $0.amount.amount > $1.amount.amount }
@@ -61,32 +60,35 @@ struct WeeklySpendingDetailView: View {
                 }
             }
             .padding(.horizontal, 4)
-            .animation(.snappy, value: selectedDay)
             
             Chart {
                 ForEach(homeViewModel.weeklyChartData) { dataPoint in
+                    let isSelected = selectedDay == nil || selectedDay == dataPoint.dayLabel
                     BarMark(
                         x: .value("Day", dataPoint.dayLabel),
                         y: .value("Amount", dataPoint.total.amount)
                     )
-                    .foregroundStyle(selectedDay == nil || selectedDay == dataPoint.dayLabel ? Color.red.gradient : Color.red.opacity(0.3).gradient)
-                    .cornerRadius(4)
+                    .foregroundStyle(FintechDesign.brandGradient.opacity(isSelected ? 1.0 : 0.3))
+                    .cornerRadius(6)
                 }
                 
-                if let selectedDay, let data = homeViewModel.weeklyChartData.first(where: { $0.dayLabel == selectedDay }) {
-                    RuleMark(x: .value("Day", data.dayLabel))
-                        .foregroundStyle(.quaternary)
+                if let selectedDay {
+                    RuleMark(x: .value("Day", selectedDay))
+                        .foregroundStyle(FintechDesign.adaptiveColor("1A1A1A", "FFFFFF").opacity(0.1))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                 }
             }
             .chartYAxis { AxisMarks(position: .leading) }
             .chartXSelection(value: $selectedDay)
             .frame(height: 250)
-            .padding(16)
+            .padding(24)
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+                FintechDesign.CardBackground()
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 32)
+                            .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                    )
             )
             .sensoryFeedback(.selection, trigger: selectedDay)
             
@@ -101,14 +103,13 @@ struct WeeklySpendingDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Category Split")
                 .font(.headline)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-            
-            Divider().padding(.leading, 64)
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 16)
             
             if categoriesInWeek.isEmpty {
                 Text("No spending this week.")
-                    .padding()
+                    .padding(24)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(0..<categoriesInWeek.count, id: \.self) { index in
@@ -125,15 +126,21 @@ struct WeeklySpendingDetailView: View {
                     .buttonStyle(.plain)
                     
                     if index < categoriesInWeek.count - 1 {
-                        Divider().padding(.leading, 64)
+                        Divider()
+                            .padding(.leading, 80)
+                            .padding(.trailing, 24)
                     }
                 }
             }
         }
+        .padding(.bottom, 12)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+            FintechDesign.CardBackground()
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 32)
+                        .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                )
         )
     }
 

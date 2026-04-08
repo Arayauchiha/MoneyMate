@@ -7,6 +7,7 @@ final class HomeViewModel {
     var expendableAmount: Money = .zero
     var totalIncome: Money = .zero
     var totalExpenses: Money = .zero
+    var totalFundedToGoals: Money = .zero
     var savingsRate: Double = 0
 
     var recentTransactions: [Transaction] = []
@@ -38,10 +39,10 @@ final class HomeViewModel {
 
             totalIncome = activeTxns.filter { $0.type == .income }.reduce(.zero) { $0 + $1.money }
             totalExpenses = activeTxns.filter { $0.type == .expense }.reduce(.zero) { $0 + $1.money }
-            let totalTransfers = activeTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
+            totalFundedToGoals = activeTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
             
             totalBalance = totalIncome - totalExpenses
-            expendableAmount = totalBalance - totalTransfers
+            expendableAmount = totalBalance - totalFundedToGoals
             
             let incomeAmount = NSDecimalNumber(decimal: totalIncome.amount).doubleValue
             let expenseAmount = NSDecimalNumber(decimal: totalExpenses.amount).doubleValue

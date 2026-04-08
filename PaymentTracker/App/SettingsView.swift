@@ -25,6 +25,15 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    TextField("Your Name", text: $appState.userName)
+                        .textContentType(.givenName)
+                } header: {
+                    Text("User Profile")
+                } footer: {
+                    Text("This name will be used in greetings on the Home dashboard.")
+                }
+
+                Section {
                     Picker("Default Currency", selection: $appState.userCurrency) {
                         ForEach(currencies, id: \.self) {
                             Text($0)
