@@ -11,16 +11,23 @@ struct AllCategoriesView: View {
     @State private var pickerDate: Date
     @State private var isPeriodPickerPresented = false
     
-    init() {
+    init(startDate: Date? = nil, endDate: Date? = nil) {
         let calendar = Calendar.current
         let today = Date()
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: today))!
         let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
         
-        self._currentStart = State(initialValue: startOfMonth)
-        self._currentEnd = State(initialValue: endOfMonth)
-        self._pickerDate = State(initialValue: startOfMonth)
-        self._resolution = State(initialValue: .month)
+        let initialStart = startDate ?? startOfMonth
+        let initialEnd = endDate ?? endOfMonth
+        
+        self._currentStart = State(initialValue: initialStart)
+        self._currentEnd = State(initialValue: initialEnd)
+        self._pickerDate = State(initialValue: initialStart)
+        
+        let diff = calendar.dateComponents([.day], from: initialStart, to: initialEnd).day ?? 0
+        if diff <= 1 { self._resolution = State(initialValue: .day) }
+        else if diff <= 7 { self._resolution = State(initialValue: .week) }
+        else { self._resolution = State(initialValue: .month) }
     }
     
     private var filteredTransactions: [Transaction] {

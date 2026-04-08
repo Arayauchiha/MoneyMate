@@ -184,11 +184,14 @@ struct CategoryDetailView: View {
                     .chartYAxis(.hidden)
                     .chartXAxis {
                         AxisMarks { value in
+                            AxisGridLine()
+                                .foregroundStyle(Color.gray.opacity(0.1))
                             AxisValueLabel()
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(Color.gray)
                         }
                     }
+                    .tint(Color.gray)
                     .chartYScale(domain: 0...(chartData.map { $0.total.amount }.max() ?? 100))
                     .frame(height: 180)
                     .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isChartAnimated)

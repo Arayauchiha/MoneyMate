@@ -80,8 +80,26 @@ struct WeeklySpendingDetailView: View {
                 }
             }
             .chartYScale(domain: 0...(homeViewModel.weeklyChartData.map { $0.total.amount }.max() ?? 100))
-            .chartYAxis { AxisMarks(position: .leading) }
+            .chartYAxis {
+                AxisMarks(position: .leading) {
+                    AxisGridLine()
+                        .foregroundStyle(Color.gray.opacity(0.2))
+                    AxisValueLabel()
+                        .font(.caption2)
+                        .foregroundStyle(Color.gray)
+                }
+            }
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisGridLine()
+                        .foregroundStyle(Color.gray.opacity(0.2))
+                    AxisValueLabel()
+                        .font(.caption2)
+                        .foregroundStyle(Color.gray)
+                }
+            }
             .chartXSelection(value: $selectedDay)
+            .tint(Color.gray)
             .frame(height: 250)
             .padding(24)
             .background(

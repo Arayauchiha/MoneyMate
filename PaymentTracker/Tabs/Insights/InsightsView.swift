@@ -266,7 +266,8 @@ struct InsightsView: View {
                 Spacer()
                 
                 // Unified "View Details" Navigation
-                NavigationLink(destination: AllCategoriesView()) {
+                let range = insightsViewModel.selectedPeriod.dateRange
+                NavigationLink(destination: AllCategoriesView(startDate: range.start, endDate: range.end)) {
                     HStack(spacing: 4) {
                         Text("View Details")
                             .font(.caption.bold())
@@ -344,11 +345,14 @@ struct InsightsView: View {
                 .padding(.bottom, 4)
             
             // 2. Unified Category List (Strict Mirror from Home)
+            let range = insightsViewModel.selectedPeriod.dateRange
             SpendingCategoryList(
                 categories: insightsViewModel.categoryTotals.prefix(3).map { 
                     SpendingCategoryItem(category: $0.category, amount: $0.total, transactionCount: $0.transactionCount)
                 },
-                appStateViewModel: appStateViewModel
+                appStateViewModel: appStateViewModel,
+                startDate: range.start,
+                endDate: range.end
             )
             .padding(.vertical, 8)
         }

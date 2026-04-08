@@ -12,9 +12,13 @@ struct SpendingCategoryItem: Identifiable {
 struct SpendingCategoryList: View {
     let categories: [SpendingCategoryItem]
     let appStateViewModel: AppStateViewModel
+    
+    // Optional dates to control drill-down range. Defaults to current week if nil.
+    var startDate: Date? = nil
+    var endDate: Date? = nil
 
-    // Computed OUTSIDE @ViewBuilder — while loops are not allowed inside view bodies
-    private var thisWeekStart: Date {
+    private var effectiveStart: Date {
+        if let startDate { return startDate }
         let calendar = Calendar.current
         var date = calendar.startOfDay(for: Date())
         while calendar.component(.weekday, from: date) != 2 {
@@ -23,8 +27,9 @@ struct SpendingCategoryList: View {
         return date
     }
 
-    private var thisWeekEnd: Date {
-        Calendar.current.date(byAdding: .day, value: 6, to: thisWeekStart)!
+    private var effectiveEnd: Date {
+        if let endDate { return endDate }
+        return Calendar.current.date(byAdding: .day, value: 6, to: effectiveStart)!
     }
 
     var body: some View {
@@ -38,7 +43,7 @@ struct SpendingCategoryList: View {
     @ViewBuilder
     private func categoryRow(item: SpendingCategoryItem, index: Int) -> some View {
         NavigationLink {
-            CategoryDetailView(category: item.category, startDate: thisWeekStart, endDate: thisWeekEnd)
+            CategoryDetailView(category: item.category, startDate: effectiveStart, endDate: effectiveEnd)
         } label: {
             HStack(spacing: 16) {
                 Circle()

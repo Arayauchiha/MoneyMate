@@ -71,12 +71,12 @@ enum FintechDesign {
                         .font(.title2)
                 }
                 .foregroundStyle(.white)
-                .padding(.bottom, 24)
+                .padding(.bottom, 14) // Reduced gap
                 
                 // Main Balance
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Total Balance")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.white.opacity(0.7))
                         .textCase(.uppercase)
                     
@@ -85,23 +85,28 @@ enum FintechDesign {
                         .foregroundStyle(.white)
                         .minimumScaleFactor(0.8)
                 }
-                .padding(.bottom, 12)
+                .padding(.bottom, 8) // Reduced gap
                 
-                // Safe to Spend Pill
+                // Safe to Spend Section (Redesigned)
                 if safeToSpend != "0" {
-                    HStack(spacing: 6) {
-                        Image(systemName: "leaf.fill")
-                            .font(.caption2)
-                        Text("\(safeToSpend) safe to spend")
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Safe to Spend")
                             .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                        
+                        HStack(spacing: 6) {
+                            Image(systemName: "leaf.fill")
+                                .font(.caption)
+                            Text(safeToSpend)
+                                .font(.system(size: 26, weight: .bold, design: .rounded))
+                        }
+                        .foregroundStyle(.white)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.25), in: Capsule())
-                    .foregroundStyle(.white)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 14) // Reduced gap
                 } else {
-                    Spacer(minLength: 24)
+                    Spacer(minLength: 14)
                 }
                 
                 Spacer()
@@ -113,7 +118,7 @@ enum FintechDesign {
                     StatItem(title: "Spent", value: expenses, icon: "arrow.up")
                 }
             }
-            .padding(28)
+            .padding(32) // Increased outer padding
             .frame(maxWidth: .infinity)
             .frame(height: 260)
             .background(

@@ -147,12 +147,15 @@ struct WeeklyTrendChart: View {
                 .chartYScale(domain: 0...(homeViewModel.weeklyChartData.map { $0.total.amount }.max() ?? 100))
                 .chartYAxis(.hidden)
                 .chartXAxis {
-                    AxisMarks { value in
+                    AxisMarks { _ in
+                        AxisGridLine()
+                            .foregroundStyle(Color.gray.opacity(0.1))
                         AxisValueLabel()
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color.gray)
                     }
                 }
+                .tint(Color.gray)
             }
         }
         .padding(24)
