@@ -1,48 +1,65 @@
 # MoneyMate — Your Personal Finance Companion
 
-MoneyMate is a high-performance, natively-built personal finance tracker designed for precision, daily habit tracking, and data integrity. Unlike generic banking apps, MoneyMate provides a deep analytical dive into your spending habits through a sophisticated "Insights" dashboard and a logic-driven "Goal" system.
+MoneyMate is a high-performance, natively-built personal finance tracker designed to transform how users interact with their money. While most trackers stop at simple lists, MoneyMate focuses on **automated insights, habit gamification, and absolute data integrity**.
 
-## 🚀 Key Features
+<p align="center">
+  <img src="Screenshots/home.PNG" width="22%" />
+  <img src="Screenshots/transactions.PNG" width="22%" />
+  <img src="Screenshots/goals.PNG" width="22%" />
+  <img src="Screenshots/insights.PNG" width="22%" />
+</p>
 
-### 📊 Professional Insights & Trends
-- **Interactive Dashboards:** Visualise financial health with donut charts, line graphs, and area charts powered by Swift Charts.
-- **Deep Historical Analysis:** Filter data by Week, Month, Quarter, or Year, with the ability to drill down into any historical month from the last year.
-- **Daily Performance:** Track "Average Spending per Day" to maintain daily budget discipline.
+## 🚀 Key Pillars of MoneyMate
 
-### 🎯 Proactive Goal System & Gamification
-- **Multi-Type Goals:** Set targets for Savings, Budget Caps, No-Spend challenges, and Daily Limits.
-- **Gamified Progress:** Track success through "Current" and "Longest" streaks for habit-based goals.
-- **Goal Indicators:** Proactive status labels (On Track, At Risk, Achieved, Failed) that adapt dynamically to the remaining time and current spending velocity.
+### 1. The "Universal Access" Workflow
+- **Global Action Hub:** A centrally placed, always-accessible `+` button in the persistent tab bar allows users to log income or expenses from any screen instantly.
+- **Advanced Transaction Engine:** A searchable and filterable ledger that supports detailed notes and category tagging.
+- **Seamless Archive Flow:** Transactions aren't just deleted; they can be moved to a secure **Archive Vault** for 30 days before permanent removal, preserving your balance history while keeping your primary view clean.
 
-### 🛡️ Data Integrity (The Audit Philosophy)
-- **Soft-Delete Archive:** Moves transactions to a secure "Audit Vault" instead of immediate deletion. This ensures your shown balance always matches your bank history while keeping your primary transaction list clean.
-- **Bulk Audit Management:** Restore or permanently delete multiple transactions with full data safety warnings.
+### 2. Analytical Intelligence (Insights)
+- **Dynamic Spending Analysis:** A professional donut-chart breakdown of your spending habits, automatically identifying your **Top 3 Spending Categories**.
+- **Historical Drills:** By default, the app provides a monthly summary, but users can toggle between Weekly, Monthly, or Yearly perspectives with interactive charts.
+- **Trend Visualization:** Dedicated views for Daily, Weekly, and Monthly historical data to spot spending spikes before they become habits.
+<p align="center">
+  <img src="Screenshots/graph1.PNG" width="45%" />
+  <img src="Screenshots/graph2.png" width="45%" />
+</p>
 
-### 🔐 Security & Privacy
-- **Native Biometrics:** Integrated Face ID and Passcode protection for the entire app.
-- **Session Locking:** Automated session management that locks data when the app moves to the background.
+### 3. Gamified Goal Architecture
+- **Multi-Dimensional Goals:** Set more than just a savings target. MoneyMate supports:
+    *   **Savings Goals:** Track progress toward a specific purchase.
+    *   **Budget Caps:** Strictly monitor spending within a chosen category.
+    *   **No-Spend Challenges:** Gamify discipline by tracking "success streaks."
+    *   **Daily Spending Limits:** Maintain day-to-day financial health.
+- **"Safe to Spend" Intelligence:** The app dynamically calculates exactly how much of your total balance is actually available after accounting for your funded goals.
 
-### 🔔 Smart Notification Centre
-- **Threshold Alerts:** Receive proactive notifications when you reach 80% of a budget cap or 90% of a saving goal.
-- **Daily Reminders:** Configurable check-in reminders to keep your financial records up to date.
+### 4. Native Security & Smart Notifications
+- **Biometric Security:** Integrated **Face ID** and Passcode protection ensures your sensitive financial data remains private.
+- **Proactive Alerts:** A smart notification system that goes beyond reminders:
+    *   **Daily Log Reminders:** Set a custom time for a daily check-in.
+    *   **Threshold Notifications:** Receive "Encouraging Alerts" when a goal is 90% reached and "Congratulations" at 100%.
+    *   **Budget Warnings:** Get notified when you are approaching your set budget caps.
 
-### 📂 Portability
-- **CSV Export:** Instant export of all transactions into a standard CSV format for use in spreadsheet tools like Excel, Numbers, or Google Sheets.
+### 5. Data Mobility
+- **One-Click CSV Export:** Master your data outside the app. Export your entire transaction history (including archived items) into a standardized CSV format for use in Excel or Google Sheets.
 
-## 🏗️ Technical Architecture
+---
 
-MoneyMate is built with a focus on scalability and performance:
+<p align="center">
+  <img src="Screenshots/graph3.PNG" width="60%" />
+</p>
 
-- **SwiftUI + Observation:** Clean, reactive UI state management using the modern `@Observable` macro.
-- **SwiftData Persistence:** High-performance, local-first data storage with efficient FetchDescriptors and Predicates.
-- **MVVM-C Pattern:** Clear separation between models, views, and complex business logic in ViewModels.
-- **Custom Design System:** The `FintechDesign` system provides adaptive tokens for Light/Dark modes, consistent typography (SF Rounded), and professional gradients.
-- **Precision Accounting:** Uses a dedicated `Money` struct for all currency calculations to prevent floating-point errors.
+## 🏗️ Technical Stack
+- **SwiftUI + Observation:** Reactive, fluid UI.
+- **SwiftData:** Reliable, local-first persistence.
+- **Swift Charts:** High-fidelity data visualization.
+- **LocalAuthentication:** Native biometric security.
 
-## 🛠️ Requirements
-- **iOS 26.0+** (Required for SwiftData and latest SwiftUI features)
-- **Xcode 26.4.0+**
-- **Swift 6.2+**
+## 🛠️ Setup Instructions
+1.  **Environment**: Requires **Xcode 26.0+** and **iOS 26.0+**.
+2.  **Open**: Launch `PaymentTracker.xcodeproj`.
+3.  **Run**: Select any modern iPhone simulator and press `Cmd + R`.
+4.  **Face ID**: To test security, enable `Features > Face ID > Enrolled` in the Simulator.
 
 ---
 *Built with precision for the modern personal finance enthusiast.*

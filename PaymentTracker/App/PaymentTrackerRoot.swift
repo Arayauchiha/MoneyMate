@@ -28,7 +28,6 @@ struct MoneyMateRoot: View {
         .environment(insightsViewModel)
         .environment(appStateViewModel)
         .task {
-            // Initial configuration
             appStateViewModel.configure(context: modelContext)
             homeViewModel.configure(context: modelContext)
             transactionViewModel.configure(context: modelContext)
@@ -37,13 +36,11 @@ struct MoneyMateRoot: View {
 
             transactionViewModel.cleanupOldArchives()
 
-            // Notification Permissions & Scheduling
             NotificationManager.shared.requestPermission()
             if appStateViewModel.isDailyReminderEnabled {
                 NotificationManager.shared.scheduleDailyReminder(at: appStateViewModel.dailyReminderTime)
             }
 
-            // Initial auth if enabled
             if appStateViewModel.isBiometricsEnabled {
                 appStateViewModel.authenticate()
             }

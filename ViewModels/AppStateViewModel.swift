@@ -113,12 +113,10 @@ final class AppStateViewModel {
 
     func configure(context: ModelContext) {
         modelContext = context
-        // Initial lock check
         if isBiometricsEnabled {
             isAppLocked = true
         }
 
-        // Notification Check
         UNUserNotificationCenter.current().getNotificationSettings { settings in
             let status = settings.authorizationStatus
             Task { @MainActor in
@@ -141,15 +139,12 @@ final class AppStateViewModel {
         isAlertPresented = true
     }
 
-    // MARK: - Authentication
-
     func authenticate() {
         guard isBiometricsEnabled else {
             isAppLocked = false
             return
         }
 
-        // Prevent multiple simultaneous authentication requests
         guard !isAuthenticating else { return }
 
         Task {
@@ -157,24 +152,19 @@ final class AppStateViewModel {
             defer { isAuthenticating = false }
 
             let context = LAContext()
-            // Allow user to cancel and immediately retry
             context.localizedCancelTitle = "Use Passcode"
 
-            // LAContext.canEvaluatePolicy requires error pointer in Swift 6, mark as unsafe
             let canEval = unsafe context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
 
             if canEval {
                 do {
-                    // Use the async version of evaluatePolicy
                     let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock MoneyMate to access your financial data.")
                     if success {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             isAppLocked = false
                         }
                     }
-                } catch {
-                    // Stay locked if auth failed
-                }
+                } catch {}
             } else {
                 isAppLocked = false
             }

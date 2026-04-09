@@ -30,37 +30,32 @@ final class InsightsViewModel {
     }
 
     var currentMonthYearDisplay: String {
-        // If a specific month is manually selected, show it
         if let customMonth {
             let formatter = DateFormatter()
             formatter.dateFormat = "MMMM yyyy"
             return formatter.string(from: customMonth)
         }
-        // Otherwise derive a label from the active period's date range
+
         let (start, end) = selectedPeriod.dateRange
         let monthFormatter = DateFormatter()
         monthFormatter.dateFormat = "MMMM yyyy"
 
         switch selectedPeriod {
         case .week:
-            // e.g. "3 – 9 Apr 2026"
             let dayFormatter = DateFormatter()
             dayFormatter.dateFormat = "d MMM"
             let endFull = DateFormatter()
             endFull.dateFormat = "d MMM yyyy"
             return "\(dayFormatter.string(from: start)) – \(endFull.string(from: end))"
         case .month:
-            // e.g. "April 2026"
             return monthFormatter.string(from: start)
         case .threeMonths:
-            // e.g. "Jan – Mar 2026"
             let shortMonth = DateFormatter()
             shortMonth.dateFormat = "MMM"
             let yearFormatter = DateFormatter()
             yearFormatter.dateFormat = "yyyy"
             return "\(shortMonth.string(from: start)) – \(shortMonth.string(from: end)) \(yearFormatter.string(from: end))"
         case .year:
-            // e.g. "2026"
             let yearFormatter = DateFormatter()
             yearFormatter.dateFormat = "yyyy"
             return yearFormatter.string(from: start)
@@ -225,7 +220,7 @@ final class InsightsViewModel {
     private func buildDailyTrend(from transactions: [Transaction]) -> [TrendTotal] {
         let calendar = Calendar.current
         let today = Date()
-        let cutoff = calendar.date(byAdding: .day, value: -14, to: today)! // Last 14 days
+        let cutoff = calendar.date(byAdding: .day, value: -14, to: today)!
         let expenses = transactions.filter { $0.type == .expense && $0.date >= cutoff }
 
         let grouped = Dictionary(
@@ -289,7 +284,6 @@ struct CategoryTotal: Identifiable, Equatable {
         self.category = category
         self.total = total
         self.transactionCount = transactionCount
-        // Stable ID based on category; 0000... for "Other"
         id = category?.id ?? UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     }
 

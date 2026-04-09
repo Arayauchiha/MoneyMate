@@ -10,13 +10,11 @@ final class Transaction: Identifiable {
     var note: String = ""
     var isArchived: Bool = false
     var archivedDate: Date?
-    var repeatFrequency: String = "never" // never, daily, weekly, monthly, yearly
+    var repeatFrequency: String = "never"
     var isScheduled: Bool = false
 
-    /// Transient: set by ViewModel to show a recurring occurrence at a different date without creating an unmanaged proxy.
     @Transient var displayDate: Date?
 
-    /// The date to use for display purposes (occurrence date if set, otherwise actual stored date).
     var effectiveDate: Date {
         displayDate ?? date
     }
@@ -105,7 +103,6 @@ final class Transaction: Identifiable {
         return (diff.value(for: components) ?? 0) + 1
     }
 
-    /// Returns every date this transaction occurs on from its origin up to `cutoff`.
     func occurrenceDates(upTo cutoff: Date) -> [Date] {
         guard repeatFrequency != "never" else {
             return date <= cutoff ? [date] : []
@@ -132,8 +129,6 @@ final class Transaction: Identifiable {
         return dates
     }
 
-    /// Creates a display-only in-memory occurrence of this transaction on a different date.
-    /// This object is NEVER inserted into any model context — it is purely for UI display.
     func virtualOccurrence(on occurrenceDate: Date) -> Transaction {
         let virtual = Transaction(
             amount: money,
