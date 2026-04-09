@@ -1,14 +1,14 @@
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 struct GoalDetailView: View {
     let goal: Goal
-    
+
     @Environment(GoalsViewModel.self) private var goalsViewModel
     @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(\.modelContext) private var modelContext
-    
+
     @Query private var allTransactions: [Transaction]
     @State private var isFundingPresented = false
     @State private var isDeleteAlertPresented = false
@@ -18,7 +18,7 @@ struct GoalDetailView: View {
     @State private var isPermanentDeleteConfirmPresented = false
     @Environment(TransactionViewModel.self) private var transactionViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
     init(goal: Goal) {
         self.goal = goal
         let descriptor = FetchDescriptor<Transaction>(
@@ -26,7 +26,7 @@ struct GoalDetailView: View {
         )
         _allTransactions = Query(descriptor)
     }
-    
+
     private var associatedTransactions: [Transaction] {
         switch goal.type {
         case .savings:
@@ -34,12 +34,12 @@ struct GoalDetailView: View {
         case .budgetCap, .noSpend, .dailyLimit:
             let ids = Set(goal.blockedCategoryIDs)
             let startOfDay = Calendar.current.startOfDay(for: goal.startDate)
-            return allTransactions.filter { 
+            return allTransactions.filter {
                 !$0.isArchived &&
-                $0.type == .expense && 
-                $0.date >= startOfDay && 
-                $0.date <= goal.deadline &&
-                (ids.isEmpty ? true : $0.category.map { ids.contains($0.id) } ?? false)
+                    $0.type == .expense &&
+                    $0.date >= startOfDay &&
+                    $0.date <= goal.deadline &&
+                    (ids.isEmpty ? true : $0.category.map { ids.contains($0.id) } ?? false)
             }
         }
     }
@@ -58,25 +58,47 @@ struct GoalDetailView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     headerSection
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                                .shadow(color: Color.black.opacity(0.04), radius: 15, x: 0, y: 10)
-                        )
-                    
+
                     if !chartData.isEmpty {
                         chartSection
                     }
 
                     VStack(alignment: .leading, spacing: 16) {
                         Text(goal.type == .savings ? "Funding History" : "Affecting Transactions")
-                            .font(.headline)
+                            .font(.system(size: 13, weight: .black))
+                            .textCase(.uppercase)
+                            .tracking(1)
                             .foregroundStyle(.secondary)
-                            
+                            .padding(.horizontal, 8)
+
                         if associatedTransactions.isEmpty {
                             emptyState
                         } else {
+                            if goal.type == .noSpend || goal.type == .budgetCap {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Impact Summary")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.secondary)
+
+                                    let totalSpent = associatedTransactions.reduce(Decimal(0)) { $0 + $1.money.amount }
+                                    HStack {
+                                        Text("Total spent in blocked categories:")
+                                        Spacer()
+                                        Text(Money(totalSpent).formatted(with: appStateViewModel.userCurrency))
+                                            .foregroundStyle(.red)
+                                            .fontWeight(.bold)
+                                    }
+                                    .font(.subheadline)
+                                    .padding()
+                                    .background(Color.red.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+
+                                    Divider()
+                                        .padding(.vertical, 8)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.bottom, 8)
+                            }
+
                             VStack(spacing: 0) {
                                 ForEach(Array(associatedTransactions.enumerated()), id: \.element.id) { index, txn in
                                     HStack(spacing: 12) {
@@ -92,22 +114,30 @@ struct GoalDetailView: View {
                                                         selectedHistoryTransactions.insert(txn.id)
                                                     }
                                                 }
-                                                .padding(.leading, 16)
+                                                .padding(.leading, 24)
                                         }
-                                        
+
                                         TransactionRow(transaction: txn)
-                                            .padding(.vertical, 12)
-                                            .padding(.horizontal, isHistoryEditingMode ? 8 : 16)
+                                            .padding(.vertical, 14)
+                                            .padding(.horizontal, isHistoryEditingMode ? 12 : 24)
                                     }
-                                    
+                                    .contentShape(Rectangle())
+
                                     if index < associatedTransactions.count - 1 {
-                                        Divider().padding(.leading, isHistoryEditingMode ? 104 : 72)
+                                        Divider()
+                                            .padding(.leading, isHistoryEditingMode ? 104 : 80)
+                                            .padding(.trailing, 24)
                                     }
                                 }
                             }
+                            .padding(.vertical, 8)
                             .background(
-                                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                                FintechDesign.CardBackground()
+                                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 32)
+                                            .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                                    )
                             )
                         }
                     }
@@ -130,27 +160,27 @@ struct GoalDetailView: View {
                         }
                     }
                 }
-                
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(selectedHistoryTransactions.count == associatedTransactions.count ? "Deselect All" : "Select All") {
                         withAnimation(.snappy(duration: 0.2)) {
                             if selectedHistoryTransactions.count == associatedTransactions.count {
                                 selectedHistoryTransactions.removeAll()
                             } else {
-                                selectedHistoryTransactions = Set(associatedTransactions.map { $0.id })
+                                selectedHistoryTransactions = Set(associatedTransactions.map(\.id))
                             }
                         }
                     }
                 }
-                
+
                 ToolbarItemGroup(placement: .bottomBar) {
                     Button("Archive") {
                         isArchiveConfirmPresented = true
                     }
                     .disabled(selectedHistoryTransactions.isEmpty)
-                    
+
                     Spacer()
-                    
+
                     Button(role: .destructive) {
                         isPermanentDeleteConfirmPresented = true
                     } label: {
@@ -168,7 +198,7 @@ struct GoalDetailView: View {
                             } label: {
                                 Label("Edit Goal", systemImage: "pencil")
                             }
-                            
+
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                     isHistoryEditingMode = true
@@ -178,7 +208,7 @@ struct GoalDetailView: View {
                                 Label("Select Funding", systemImage: "checkmark.circle")
                             }
                         }
-                        
+
                         Section {
                             Button(role: .destructive) {
                                 isDeleteAlertPresented = true
@@ -201,7 +231,7 @@ struct GoalDetailView: View {
                 goalsViewModel.delete(goal)
                 dismiss()
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will permanently remove the goal and all its tracking data. This cannot be undone.")
         }
@@ -216,7 +246,7 @@ struct GoalDetailView: View {
                 }
                 Task { await goalsViewModel.load() }
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("These transactions will be moved to the Archive and will no longer count toward this goal.")
         }
@@ -231,7 +261,7 @@ struct GoalDetailView: View {
                 }
                 Task { await goalsViewModel.load() }
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This will permanently erase these records from your history. This cannot be undone.")
         }
@@ -240,13 +270,16 @@ struct GoalDetailView: View {
         }
         .toolbar(appStateViewModel.isTabBarHidden ? .hidden : .visible, for: .tabBar)
     }
-    
+
     private var chartSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Progress Trend")
-                .font(.headline)
+                .font(.system(size: 13, weight: .black))
+                .textCase(.uppercase)
+                .tracking(1)
                 .foregroundStyle(.secondary)
-            
+                .padding(.horizontal, 8)
+
             Chart {
                 ForEach(chartData) { point in
                     // Daily Funding Bars
@@ -255,7 +288,7 @@ struct GoalDetailView: View {
                         y: .value("Funded", point.incremental)
                     )
                     .foregroundStyle(goalsViewModel.status(for: goal).color.opacity(0.3))
-                    
+
                     // Accumulative Line
                     LineMark(
                         x: .value("Date", point.date),
@@ -264,7 +297,7 @@ struct GoalDetailView: View {
                     .foregroundStyle(goalsViewModel.status(for: goal).color.gradient)
                     .interpolationMethod(.monotone)
                     .lineStyle(StrokeStyle(lineWidth: 4, lineCap: .round))
-                    
+
                     // Points to make individual contributions visible
                     PointMark(
                         x: .value("Date", point.date),
@@ -272,7 +305,7 @@ struct GoalDetailView: View {
                     )
                     .foregroundStyle(goalsViewModel.status(for: goal).color)
                     .symbol(Circle().strokeBorder(lineWidth: 2))
-                    
+
                     AreaMark(
                         x: .value("Date", point.date),
                         y: .value("Total", point.amount)
@@ -280,8 +313,8 @@ struct GoalDetailView: View {
                     .foregroundStyle(goalsViewModel.status(for: goal).color.gradient.opacity(0.15))
                     .interpolationMethod(.monotone)
                 }
-                
-                if goal.type != .noSpend && goal.targetAmount.amount != 0 {
+
+                if goal.type != .noSpend, goal.targetAmount.amount != 0 {
                     RuleMark(y: .value("Target", goal.targetAmount.amount))
                         .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
                         .foregroundStyle(.gray.opacity(0.5))
@@ -301,20 +334,23 @@ struct GoalDetailView: View {
                 }
             }
             .chartXAxis {
-                AxisMarks(preset: .extended, values: .automatic) { value in
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                     AxisGridLine()
-                    AxisValueLabel()
+                    AxisValueLabel(format: .dateTime.month().day())
                         .font(.system(size: 10, weight: .bold))
                 }
             }
             .frame(height: 250)
-            .padding(20)
+            .padding(24)
             .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.03), radius: 12, x: 0, y: 6)
+                FintechDesign.CardBackground()
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
             )
-            
+            .overlay(
+                RoundedRectangle(cornerRadius: 32)
+                    .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+            )
+
             HStack(spacing: 20) {
                 HStack(spacing: 6) {
                     Circle().fill(goalsViewModel.status(for: goal).color.opacity(0.3)).frame(width: 8, height: 8)
@@ -328,88 +364,141 @@ struct GoalDetailView: View {
             .padding(.horizontal)
         }
     }
-    
+
     private var headerSection: some View {
-        VStack(spacing: 20) {
-            HStack {
+        let goalStatus = goalsViewModel.status(for: goal)
+        let goalColor = goalStatus.color
+
+        return VStack(spacing: 24) {
+            // Master Header Info
+            HStack(alignment: .top) {
+                ZStack {
+                    Circle()
+                        .fill(goalColor.opacity(0.1))
+                        .frame(width: 60, height: 60)
+                    Image(systemName: goal.type.systemImage)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(goalColor)
+                }
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(goal.title)
                         .font(.title2)
                         .fontWeight(.black)
+                        .foregroundStyle(FintechDesign.primaryText)
                     Text(goal.type.label)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
+                        .tracking(1)
+
+                    Text("\(associatedTransactions.count) recorded transactions")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.secondary.opacity(0.7))
                 }
+
                 Spacer()
-                
-                let status = goalsViewModel.status(for: goal)
-                Label(status.label, systemImage: status.systemImage)
-                    .font(.caption)
-                    .fontWeight(.bold)
+
+                Text(goalStatus.label)
+                    .font(.system(size: 10, weight: .black))
+                    .textCase(.uppercase)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(status.color.opacity(0.15), in: Capsule())
-                    .foregroundStyle(status.color)
+                    .padding(.vertical, 8)
+                    .background(goalColor.opacity(0.1), in: Capsule())
+                    .foregroundStyle(goalColor)
             }
-            
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
+
+            // Stats Row
+            HStack(spacing: 12) {
+                DetailStat(title: "Deadline", value: goal.deadline.formatted(.dateTime.day().month().year()))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+
+                DetailStat(title: "Time Left", value: "\(goal.daysRemaining) days")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.secondary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+            }
+
+            // Progress Center
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .lastTextBaseline) {
                     Text(goalsViewModel.progressLabel(for: goal, symbol: appStateViewModel.userCurrency))
-                        .font(.headline)
+                        .font(.system(.title3, design: .rounded).bold())
+                        .foregroundStyle(FintechDesign.primaryText)
+
                     Spacer()
+
                     Text("\(Int(goalsViewModel.progressFraction(for: goal) * 100))%")
-                        .font(.subheadline).bold()
-                        .foregroundStyle(.blue)
+                        .font(.system(.subheadline, design: .rounded).bold())
+                        .foregroundStyle(goalColor)
                 }
-                
-                ProgressView(value: goalsViewModel.progressFraction(for: goal))
-                    .tint(goalsViewModel.status(for: goal).color)
-                    .scaleEffect(x: 1, y: 1.5, anchor: .center)
-            }
-            
-            HStack(alignment: .center) {
-                HStack(spacing: 20) {
-                    DetailStat(title: "Deadline", value: goal.deadline.formatted(.dateTime.day().month().year()))
-                    DetailStat(title: "Time Left", value: "\(goal.daysRemaining) days")
+
+                // Custom Liquid Progress
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.secondary.opacity(0.1))
+
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [goalColor, goalColor.opacity(0.6)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geo.size.width * CGFloat(goalsViewModel.progressFraction(for: goal)))
+                    }
                 }
-                
-                Spacer()
-                
-                if goal.type == .savings && goalsViewModel.status(for: goal) != .achieved {
+                .frame(height: 10)
+
+                if goal.type == .savings, goalStatus != .achieved {
                     Button {
                         isFundingPresented = true
                     } label: {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Image(systemName: "plus.circle.fill")
-                            Text("Fund Goal")
+                            Text("Add Funds")
                         }
-                        .font(.subheadline).bold()
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.blue)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(goalColor, in: RoundedRectangle(cornerRadius: 16))
                         .foregroundStyle(.white)
-                        .clipShape(Capsule())
-                        .shadow(color: .blue.opacity(0.3), radius: 6, x: 0, y: 3)
+                        .shadow(color: goalColor.opacity(0.3), radius: 10, x: 0, y: 5)
                     }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
                 }
             }
         }
+        .padding(24)
+        .background(
+            FintechDesign.CardBackground()
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 32)
+                .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+        )
     }
-    
+
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "list.dash")
                 .font(.largeTitle)
                 .foregroundStyle(.tertiary)
             Text("No activity found for this goal.")
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 40)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.quaternary, style: StrokeStyle(lineWidth: 1, dash: [4]))
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(Color.secondary.opacity(0.2), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
         )
     }
 }

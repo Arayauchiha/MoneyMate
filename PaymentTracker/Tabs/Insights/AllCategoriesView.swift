@@ -1,37 +1,42 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct AllCategoriesView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Transaction.date, order: .reverse) private var transactions: [Transaction]
-    
+
     @State private var currentStart: Date
     @State private var currentEnd: Date
     @State private var resolution: DetailResolution
     @State private var pickerDate: Date
     @State private var isPeriodPickerPresented = false
-    
-    init() {
+
+    init(startDate: Date? = nil, endDate: Date? = nil) {
         let calendar = Calendar.current
         let today = Date()
         let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: today))!
         let endOfMonth = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: startOfMonth)!
-        
-        self._currentStart = State(initialValue: startOfMonth)
-        self._currentEnd = State(initialValue: endOfMonth)
-        self._pickerDate = State(initialValue: startOfMonth)
-        self._resolution = State(initialValue: .month)
+
+        let initialStart = startDate ?? startOfMonth
+        let initialEnd = endDate ?? endOfMonth
+
+        _currentStart = State(initialValue: initialStart)
+        _currentEnd = State(initialValue: initialEnd)
+        _pickerDate = State(initialValue: initialStart)
+
+        let diff = calendar.dateComponents([.day], from: initialStart, to: initialEnd).day ?? 0
+        if diff <= 1 { _resolution = State(initialValue: .day) } else if diff <= 7 { _resolution = State(initialValue: .week) } else { _resolution = State(initialValue: .month) }
     }
-    
+
     private var filteredTransactions: [Transaction] {
         transactions.filter { txn in
             txn.type == .expense &&
-            txn.date >= currentStart &&
-            txn.date <= currentEnd &&
-            !txn.isArchived
+                txn.date >= currentStart &&
+                txn.date <= currentEnd &&
+                !txn.isArchived
         }
     }
-    
+
     private var categoryTotals: [CategoryTotal] {
         let uncategorisedID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
         let grouped = Dictionary(grouping: filteredTransactions, by: { $0.category?.id ?? uncategorisedID })
@@ -43,7 +48,7 @@ struct AllCategoriesView: View {
             }
             .sorted { $0.total.amount > $1.total.amount }
     }
-    
+
     var body: some View {
         List {
             Section {
@@ -69,7 +74,7 @@ struct AllCategoriesView: View {
                                             .foregroundStyle(categoryTotal.categoryColor)
                                             .font(.headline)
                                     }
-                                
+
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(categoryTotal.categoryName)
                                         .font(.headline)
@@ -77,9 +82,9 @@ struct AllCategoriesView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
-                                
+
                                 Spacer()
-                                
+
                                 Text(categoryTotal.formattedTotal)
                                     .font(.headline).bold()
                             }
@@ -109,7 +114,7 @@ struct AllCategoriesView: View {
             filterSheet
         }
     }
-    
+
     private var filterSheet: some View {
         NavigationStack {
             Form {
@@ -124,7 +129,7 @@ struct AllCategoriesView: View {
                         updatePeriod(from: pickerDate)
                     }
                 }
-                
+
                 Section("Jump to Date") {
                     VStack(alignment: .leading, spacing: 8) {
                         if resolution == .week {
@@ -133,7 +138,7 @@ struct AllCategoriesView: View {
                                 .font(.caption).bold()
                                 .foregroundStyle(.blue)
                         }
-                        
+
                         DatePicker("Target Date", selection: $pickerDate, displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .onChange(of: pickerDate) { _, newDate in
@@ -153,7 +158,7 @@ struct AllCategoriesView: View {
         }
         .presentationDetents([.medium, .large])
     }
-    
+
     private func updatePeriod(from date: Date) {
         let calendar = Calendar.current
         switch resolution {
@@ -161,7 +166,11 @@ struct AllCategoriesView: View {
             currentStart = calendar.startOfDay(for: date)
             currentEnd = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) ?? date
         case .week:
-            currentStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date))!
+            var current = calendar.startOfDay(for: date)
+            while calendar.component(.weekday, from: current) != 2 {
+                current = calendar.date(byAdding: .day, value: -1, to: current)!
+            }
+            currentStart = current
             currentEnd = calendar.date(byAdding: .day, value: 6, to: currentStart)!
         case .month:
             currentStart = calendar.date(from: calendar.dateComponents([.year, .month], from: date))!

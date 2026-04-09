@@ -9,7 +9,7 @@ final class TransactionViewModel {
     var searchQuery: String = "" {
         didSet { applyFilters() }
     }
-    
+
     var dataVersion: Int = 0
 
     var selectedType: TransactionType? {
@@ -74,10 +74,12 @@ final class TransactionViewModel {
         date: Date,
         title: String,
         note: String,
+        repeatFrequency: String = "never",
         linkedGoal: Goal? = nil
     ) {
+        let isScheduled = date > Date()
         guard let context = modelContext else { return }
-        let txn = Transaction(amount: amount, type: type, category: category, linkedGoal: linkedGoal, date: date, title: title, note: note)
+        let txn = Transaction(amount: amount, type: type, category: category, linkedGoal: linkedGoal, date: date, title: title, note: note, repeatFrequency: repeatFrequency, isScheduled: isScheduled)
         context.insert(txn)
         save(context: context)
         Task { await load() }
@@ -92,6 +94,7 @@ final class TransactionViewModel {
         date: Date,
         title: String,
         note: String,
+        repeatFrequency: String = "never",
         linkedGoal: Goal? = nil
     ) {
         transaction.money = amount
@@ -100,6 +103,8 @@ final class TransactionViewModel {
         transaction.date = date
         transaction.title = title
         transaction.note = note
+        transaction.repeatFrequency = repeatFrequency
+        transaction.isScheduled = date > Date()
         transaction.linkedGoal = linkedGoal
         guard let context = modelContext else { return }
         save(context: context)
@@ -161,7 +166,7 @@ final class TransactionViewModel {
         // Remove from local arrays first to prevent UI access during deletion
         allTransactions.removeAll { $0.id == transaction.id }
         applyFilters()
-        
+
         context.delete(transaction)
         save(context: context)
         Task { @MainActor in
@@ -172,7 +177,7 @@ final class TransactionViewModel {
     @MainActor
     func deleteMultiplePermanently(_ transactions: [Transaction]) {
         guard let context = modelContext else { return }
-        let ids = Set(transactions.map { $0.id })
+        let ids = Set(transactions.map(\.id))
         allTransactions.removeAll { ids.contains($0.id) }
         applyFilters()
 
@@ -192,7 +197,35 @@ final class TransactionViewModel {
     }
 
     func applyFilters() {
-        var result = allTransactions
+        let today = Date()
+        let base = allTransactions.filter { !$0.isArchived }
+
+        // Expand recurring transactions into all their occurrences up to today
+        var expanded: [Transaction] = []
+        for txn in base {
+            if txn.repeatFrequency == "never" {
+                txn.displayDate = nil // ensure no stale display date
+                expanded.append(txn)
+            } else {
+                let dates = txn.occurrenceDates(upTo: today)
+                for (index, occurrenceDate) in dates.enumerated() {
+                    if index == 0 {
+                        // First occurrence — real stored date, use as-is
+                        txn.displayDate = nil
+                        expanded.append(txn)
+                    } else {
+                        // Virtual occurrence — stamp displayDate on a new in-memory clone
+                        // We must NOT reuse the same reference with a different displayDate
+                        // because it's a reference type. Use a fresh object with same id instead,
+                        // but to keep modelContext valid, we clone via a helper on the model itself.
+                        let clone = txn.virtualOccurrence(on: occurrenceDate)
+                        expanded.append(clone)
+                    }
+                }
+            }
+        }
+
+        var result = expanded
 
         if !searchQuery.isEmpty {
             let q = searchQuery.lowercased()
@@ -221,8 +254,7 @@ final class TransactionViewModel {
             result = result.filter { $0.date < endOfDay }
         }
 
-        result = result.filter { !$0.isArchived }
-        filteredTransactions = result
+        filteredTransactions = result.sorted { $0.effectiveDate > $1.effectiveDate }
     }
 
     func clearFilters() {
@@ -247,13 +279,13 @@ final class TransactionViewModel {
     func cleanupOldArchives() {
         guard let context = modelContext else { return }
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        
+
         let toDelete = allTransactions.filter { txn in
             txn.isArchived && (txn.archivedDate ?? .distantPast) < thirtyDaysAgo
         }
-        
+
         guard !toDelete.isEmpty else { return }
-        
+
         for txn in toDelete {
             context.delete(txn)
         }

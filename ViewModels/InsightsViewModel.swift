@@ -4,22 +4,92 @@ import SwiftUI
 @Observable
 final class InsightsViewModel {
     var selectedPeriod: TimePeriod = .month {
-        didSet { Task { await load() } }
+        didSet {
+            if !isSelectingCustomMonth {
+                customMonth = nil
+            }
+            Task { await load() }
+        }
     }
 
     var categoryTotals: [CategoryTotal] = []
     var weekComparison: WeekComparison?
     var topCategory: CategoryTotal?
     var totalForPeriod: Money = .zero
+    var totalIncomeForPeriod: Money = .zero
     var totalFundedToGoals: Money = .zero
     var averagePerDay: Money = .zero
     var monthlyTrend: [TrendTotal] = []
     var weeklyTrend: [TrendTotal] = []
     var dailyTrend: [TrendTotal] = []
+    var monthlyComparisonTrends: [ComparisonTrend] = []
     var daysInPeriod: Int = 1
+
+    var customMonth: Date? {
+        didSet { Task { await load() } }
+    }
+
+    var currentMonthYearDisplay: String {
+        // If a specific month is manually selected, show it
+        if let customMonth {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMMM yyyy"
+            return formatter.string(from: customMonth)
+        }
+        // Otherwise derive a label from the active period's date range
+        let (start, end) = selectedPeriod.dateRange
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "MMMM yyyy"
+
+        switch selectedPeriod {
+        case .week:
+            // e.g. "3 – 9 Apr 2026"
+            let dayFormatter = DateFormatter()
+            dayFormatter.dateFormat = "d MMM"
+            let endFull = DateFormatter()
+            endFull.dateFormat = "d MMM yyyy"
+            return "\(dayFormatter.string(from: start)) – \(endFull.string(from: end))"
+        case .month:
+            // e.g. "April 2026"
+            return monthFormatter.string(from: start)
+        case .threeMonths:
+            // e.g. "Jan – Mar 2026"
+            let shortMonth = DateFormatter()
+            shortMonth.dateFormat = "MMM"
+            let yearFormatter = DateFormatter()
+            yearFormatter.dateFormat = "yyyy"
+            return "\(shortMonth.string(from: start)) – \(shortMonth.string(from: end)) \(yearFormatter.string(from: end))"
+        case .year:
+            // e.g. "2026"
+            let yearFormatter = DateFormatter()
+            yearFormatter.dateFormat = "yyyy"
+            return yearFormatter.string(from: start)
+        }
+    }
 
     var isLoading: Bool = false
     var error: String?
+
+    var lastTwelveMonths: [Date] {
+        let calendar = Calendar.current
+        let today = Date()
+        return (0 ..< 12).compactMap { i in
+            calendar.date(byAdding: .month, value: -i, to: today)
+        }
+    }
+
+    private var isSelectingCustomMonth = false
+
+    func selectMonth(_ date: Date?) {
+        if let date {
+            isSelectingCustomMonth = true
+            customMonth = date
+            isSelectingCustomMonth = false
+        } else {
+            customMonth = nil
+        }
+        Task { await load() }
+    }
 
     private var modelContext: ModelContext?
 
@@ -41,22 +111,36 @@ final class InsightsViewModel {
             let allTxns = try modelContext.fetch(descriptor).filter { $0.modelContext != nil }
             let activeTxns = allTxns.filter { !$0.isArchived }
 
-            let (start, end) = selectedPeriod.dateRange
+            let (start, end): (Date, Date)
+            if let customMonth {
+                let calendar = Calendar.current
+                let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: customMonth))!
+                let monthEnd = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: monthStart)!
+                start = monthStart
+                end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: monthEnd)!
+            } else {
+                (start, end) = selectedPeriod.dateRange
+            }
+
             let periodTxns = activeTxns.filter { $0.date >= start && $0.date <= end && $0.type == .expense }
 
             daysInPeriod = max(1, Calendar.current.dateComponents([.day], from: start, to: end).day ?? 1)
             categoryTotals = buildCategoryTotals(from: periodTxns)
             topCategory = categoryTotals.first
             totalForPeriod = periodTxns.reduce(.zero) { $0 + $1.money }
+            totalIncomeForPeriod = activeTxns
+                .filter { $0.date >= start && $0.date <= end && $0.type == .income }
+                .reduce(.zero) { $0 + $1.money }
             totalFundedToGoals = activeTxns
                 .filter { $0.date >= start && $0.date <= end && $0.type == .transfer && $0.linkedGoal != nil }
                 .reduce(.zero) { $0 + $1.money }
-            
+
             averagePerDay = computeAveragePerDay(total: totalForPeriod, from: start, to: end)
             weekComparison = buildWeekComparison(from: activeTxns)
             monthlyTrend = buildMonthlyTrend(from: activeTxns)
             weeklyTrend = buildWeeklyTrend(from: activeTxns)
             dailyTrend = buildDailyTrend(from: activeTxns)
+            monthlyComparisonTrends = buildMonthlyComparisonTrends(from: activeTxns)
 
         } catch {
             self.error = error.localizedDescription
@@ -81,11 +165,9 @@ final class InsightsViewModel {
     }
 
     private func buildWeekComparison(from transactions: [Transaction]) -> WeekComparison {
-        let calendar = Calendar.current
-        let today = Date()
-        let thisStart = calendar.date(byAdding: .day, value: -6, to: today)!
-        let lastStart = calendar.date(byAdding: .day, value: -13, to: today)!
-        let lastEnd = calendar.date(byAdding: .day, value: -7, to: today)!
+        let (thisStart, _) = TimePeriod.week.dateRange
+        let lastStart = Calendar.current.date(byAdding: .day, value: -7, to: thisStart)!
+        let lastEnd = Calendar.current.date(byAdding: .day, value: -1, to: thisStart)!
 
         let thisWeek = transactions
             .filter { $0.type == .expense && $0.date >= thisStart }
@@ -123,12 +205,12 @@ final class InsightsViewModel {
     private func buildWeeklyTrend(from transactions: [Transaction]) -> [TrendTotal] {
         let calendar = Calendar.current
         let expenses = transactions.filter { $0.type == .expense }
-        
+
         let grouped = Dictionary(
             grouping: expenses,
             by: { calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: $0.date) }
         )
-        
+
         return grouped
             .map { components, txns -> TrendTotal in
                 let date = calendar.date(from: components) ?? Date()
@@ -145,15 +227,15 @@ final class InsightsViewModel {
         let today = Date()
         let cutoff = calendar.date(byAdding: .day, value: -14, to: today)! // Last 14 days
         let expenses = transactions.filter { $0.type == .expense && $0.date >= cutoff }
-        
+
         let grouped = Dictionary(
             grouping: expenses,
             by: { calendar.startOfDay(for: $0.date) }
         )
-        
+
         let formatter = DateFormatter()
         formatter.dateFormat = "d MMM"
-        
+
         return grouped
             .map { date, txns -> TrendTotal in
                 let total = txns.reduce(Money.zero) { $0 + $1.money }
@@ -161,13 +243,59 @@ final class InsightsViewModel {
             }
             .sorted { $0.date < $1.date }
     }
+
+    private func buildMonthlyComparisonTrends(from transactions: [Transaction]) -> [ComparisonTrend] {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+
+        let grouped = Dictionary(
+            grouping: transactions,
+            by: { calendar.dateComponents([.year, .month], from: $0.date) }
+        )
+
+        return grouped
+            .map { components, txns -> ComparisonTrend in
+                let date = calendar.date(from: components) ?? Date()
+                let income = txns.filter { $0.type == .income }.reduce(Money.zero) { $0 + $1.money }
+                let expense = txns.filter { $0.type == .expense }.reduce(Money.zero) { $0 + $1.money }
+                return ComparisonTrend(label: formatter.string(from: date), income: income, expense: expense, date: date)
+            }
+            .sorted { $0.date < $1.date }
+            .suffix(6)
+            .map(\.self)
+    }
 }
 
-struct CategoryTotal: Identifiable {
+struct ComparisonTrend: Identifiable, Hashable {
     let id = UUID()
+    let label: String
+    let income: Money
+    let expense: Money
+    let date: Date
+
+    var savings: Money {
+        income - expense
+    }
+}
+
+struct CategoryTotal: Identifiable, Equatable {
+    let id: UUID
     let category: Category?
     let total: Money
     let transactionCount: Int
+
+    init(category: Category?, total: Money, transactionCount: Int) {
+        self.category = category
+        self.total = total
+        self.transactionCount = transactionCount
+        // Stable ID based on category; 0000... for "Other"
+        id = category?.id ?? UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    }
+
+    static func == (lhs: CategoryTotal, rhs: CategoryTotal) -> Bool {
+        lhs.id == rhs.id && lhs.total == rhs.total && lhs.transactionCount == rhs.transactionCount
+    }
 
     var categoryName: String {
         category?.name ?? "Miscellaneous"

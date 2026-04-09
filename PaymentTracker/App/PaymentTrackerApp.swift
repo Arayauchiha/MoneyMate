@@ -2,10 +2,10 @@ import SwiftData
 import SwiftUI
 
 @main
-struct PaymentTrackerApp: App {
+struct MoneyMateApp: App {
     var body: some Scene {
         WindowGroup {
-            PaymentTrackerRoot()
+            MoneyMateRoot()
         }
         .modelContainer(try! ModelContainer.appContainer())
     }

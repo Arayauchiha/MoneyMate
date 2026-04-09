@@ -1,6 +1,6 @@
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 struct WeeklySpendingDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -8,8 +8,9 @@ struct WeeklySpendingDetailView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
 
     @Query private var allTransactions: [Transaction]
-    @State private var selectedDay: String? = nil
-    
+    @State private var selectedDay: String?
+    @State private var isAnimated = false
+
     init() {
         let descriptor = FetchDescriptor<Transaction>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
@@ -17,14 +18,12 @@ struct WeeklySpendingDetailView: View {
         _allTransactions = Query(descriptor)
     }
 
-    private var weeklyTransactions: [Transaction] {
-        let calendar = Calendar.current
-        let today = Date()
-        guard let start = calendar.date(byAdding: .day, value: -6, to: today) else { return [] }
-        return allTransactions.filter { $0.date >= start && $0.date <= today && $0.type == .expense }
+    var weeklyTransactions: [Transaction] {
+        let (start, _) = TimePeriod.week.dateRange
+        return allTransactions.filter { $0.date >= start && !$0.isArchived && $0.type == .expense }
     }
-    
-    private var categoriesInWeek: [(category: Category?, amount: Money)] {
+
+    var categoriesInWeek: [(category: Category?, amount: Money)] {
         let grouped = Dictionary(grouping: weeklyTransactions, by: { $0.category })
         return grouped.map { ($0.key, $0.value.reduce(Money.zero) { $0 + $1.money }) }
             .sorted { $0.amount.amount > $1.amount.amount }
@@ -53,7 +52,8 @@ struct WeeklySpendingDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text(homeViewModel.totalExpenses.formatted(with: appStateViewModel.userCurrency))
+                    let total = weeklyTransactions.reduce(Money.zero) { $0 + $1.money }
+                    Text(total.formatted(with: appStateViewModel.userCurrency))
                         .font(.system(.title2, design: .rounded).bold())
                     Text("Total this week")
                         .font(.caption)
@@ -61,35 +61,68 @@ struct WeeklySpendingDetailView: View {
                 }
             }
             .padding(.horizontal, 4)
-            .animation(.snappy, value: selectedDay)
-            
+
             Chart {
                 ForEach(homeViewModel.weeklyChartData) { dataPoint in
+                    let isSelected = selectedDay == nil || selectedDay == dataPoint.dayLabel
                     BarMark(
                         x: .value("Day", dataPoint.dayLabel),
-                        y: .value("Amount", dataPoint.total.amount)
+                        y: .value("Amount", isAnimated ? dataPoint.total.amount : 0)
                     )
-                    .foregroundStyle(selectedDay == nil || selectedDay == dataPoint.dayLabel ? Color.red.gradient : Color.red.opacity(0.3).gradient)
-                    .cornerRadius(4)
+                    .foregroundStyle(FintechDesign.brandGradient.opacity(isSelected ? 1.0 : 0.3))
+                    .cornerRadius(6)
                 }
-                
-                if let selectedDay, let data = homeViewModel.weeklyChartData.first(where: { $0.dayLabel == selectedDay }) {
-                    RuleMark(x: .value("Day", data.dayLabel))
-                        .foregroundStyle(.quaternary)
+
+                if let selectedDay {
+                    RuleMark(x: .value("Day", selectedDay))
+                        .foregroundStyle(FintechDesign.adaptiveColor("1A1A1A", "FFFFFF").opacity(0.1))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                 }
             }
-            .chartYAxis { AxisMarks(position: .leading) }
+            .chartYScale(domain: 0 ... (homeViewModel.weeklyChartData.map(\.total.amount).max() ?? 100))
+            .chartYAxis {
+                AxisMarks(position: .leading) {
+                    AxisGridLine()
+                        .foregroundStyle(Color.gray.opacity(0.2))
+                    AxisValueLabel()
+                        .font(.caption2)
+                        .foregroundStyle(Color.gray)
+                }
+            }
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisGridLine()
+                        .foregroundStyle(Color.gray.opacity(0.2))
+                    AxisValueLabel()
+                        .font(.caption2)
+                        .foregroundStyle(Color.gray)
+                }
+            }
             .chartXSelection(value: $selectedDay)
+            .tint(Color.gray)
             .frame(height: 250)
-            .padding(16)
+            .padding(24)
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+                FintechDesign.CardBackground()
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 32)
+                            .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                    )
             )
+            .onAppear {
+                withAnimation(.easeInOut(duration: 1.0).delay(0.2)) {
+                    isAnimated = true
+                }
+            }
+            .onChange(of: homeViewModel.weeklyChartData) { _, _ in
+                isAnimated = false
+                withAnimation(.easeInOut(duration: 1.0)) {
+                    isAnimated = true
+                }
+            }
             .sensoryFeedback(.selection, trigger: selectedDay)
-            
+
             Text("Tap or hold on a bar to see daily amount")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -101,65 +134,35 @@ struct WeeklySpendingDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Category Split")
                 .font(.headline)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-            
-            Divider().padding(.leading, 64)
-            
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 16)
+
             if categoriesInWeek.isEmpty {
                 Text("No spending this week.")
-                    .padding()
+                    .padding(24)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(0..<categoriesInWeek.count, id: \.self) { index in
-                    let item = categoriesInWeek[index]
-                    let calendar = Calendar.current
-                    let today = Date()
-                    let start = calendar.date(byAdding: .day, value: -6, to: today) ?? today
-                    
-                    NavigationLink {
-                        CategoryDetailView(category: item.category, startDate: start, endDate: today)
-                    } label: {
-                        categoryRow(item: item)
-                    }
-                    .buttonStyle(.plain)
-                    
-                    if index < categoriesInWeek.count - 1 {
-                        Divider().padding(.leading, 64)
-                    }
-                }
+                SpendingCategoryList(
+                    categories: categoriesInWeek.map { item in
+                        SpendingCategoryItem(
+                            category: item.category,
+                            amount: item.amount,
+                            transactionCount: weeklyTransactions.filter { t in t.category?.id == item.category?.id }.count
+                        )
+                    },
+                    appStateViewModel: appStateViewModel
+                )
             }
         }
+        .padding(.bottom, 12)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+            FintechDesign.CardBackground()
+                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 32)
+                        .stroke(FintechDesign.adaptiveColor("E0E0E0", "FFFFFF").opacity(0.1), lineWidth: 1)
+                )
         )
-    }
-
-    @ViewBuilder
-    private func categoryRow(item: (category: Category?, amount: Money)) -> some View {
-        HStack(spacing: 16) {
-            Circle()
-                .fill((item.category?.color ?? .gray).opacity(0.2))
-                .frame(width: 40, height: 40)
-                .overlay {
-                    Image(systemName: item.category?.iconName ?? "questionmark.circle")
-                        .foregroundStyle(item.category?.color ?? .gray)
-                }
-            
-            Text(item.category?.name ?? "Miscellaneous")
-                .font(.subheadline)
-                .fontWeight(.medium)
-            
-            Spacer()
-            
-            Text(item.amount.formatted(with: appStateViewModel.userCurrency))
-                .font(.subheadline)
-                .fontWeight(.bold)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
     }
 }

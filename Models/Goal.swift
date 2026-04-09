@@ -18,7 +18,7 @@ final class Goal: Identifiable {
 
     private var targetAmountRaw: String
     private var blockedCategoryIDsRaw: String
-    
+
     @Relationship(inverse: \Transaction.linkedGoal)
     var transactions: [Transaction]?
 
@@ -35,17 +35,17 @@ final class Goal: Identifiable {
         self.id = id
         self.title = title
         self.type = type
-        self.targetAmountRaw = "\(targetAmount.amount)"
+        targetAmountRaw = "\(targetAmount.amount)"
         self.startDate = startDate
         self.deadline = deadline
         self.isActive = isActive
-        self.currentStreak = 0
-        self.longestStreak = 0
-        self.lastEvaluatedDate = nil
-        self.hasNotified80 = false
-        self.hasNotified90 = false
-        self.hasNotified100 = false
-        self.blockedCategoryIDsRaw = blockedCategories
+        currentStreak = 0
+        longestStreak = 0
+        lastEvaluatedDate = nil
+        hasNotified80 = false
+        hasNotified90 = false
+        hasNotified100 = false
+        blockedCategoryIDsRaw = blockedCategories
             .map(\.id.uuidString)
             .joined(separator: ",")
     }
@@ -84,13 +84,13 @@ final class Goal: Identifiable {
             let totalDays = max(1, Calendar.current.dateComponents([.day], from: startDate, to: deadline).day ?? 1)
             return min(Double(currentStreak) / Double(totalDays), 1)
         }
-        
+
         if type == .dailyLimit {
             // Success rate (currentStreak is used for successful days in this context)
             let totalDays = max(1, Calendar.current.dateComponents([.day], from: startDate, to: .now).day ?? 1)
             return min(Double(currentStreak) / Double(totalDays), 1)
         }
-        
+
         guard targetAmount.amount != 0 else { return 0 }
         let fraction = (currentAmount.amount / targetAmount.amount) as NSDecimalNumber
         return min(max(fraction.doubleValue, 0), 1)
@@ -117,17 +117,17 @@ final class Goal: Identifiable {
             if isExpired { return p >= 1 ? .achieved : .failed }
             if p >= 1 { return .achieved }
             return (p < elapsed * 0.8) ? .atRisk : .onTrack
-            
+
         case .budgetCap:
             if p >= 1 { return .failed }
             if isExpired { return p < 1 ? .achieved : .failed }
             return (p > elapsed * 1.1) ? .atRisk : .onTrack
-            
+
         case .noSpend:
-            if isExpired { return currentStreak >= totalDays * 8/10 ? .achieved : .failed }
-            if currentStreak == 0 && elapsed > 0 { return .atRisk }
+            if isExpired { return currentStreak >= totalDays * 8 / 10 ? .achieved : .failed }
+            if currentStreak == 0, elapsed > 0 { return .atRisk }
             return .onTrack
-            
+
         case .dailyLimit:
             if isExpired { return p >= 0.8 ? .achieved : .failed }
             if p >= 0.9 { return .achieved }

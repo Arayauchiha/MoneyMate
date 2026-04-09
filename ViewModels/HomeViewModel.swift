@@ -7,6 +7,7 @@ final class HomeViewModel {
     var expendableAmount: Money = .zero
     var totalIncome: Money = .zero
     var totalExpenses: Money = .zero
+    var totalFundedToGoals: Money = .zero
     var savingsRate: Double = 0
 
     var recentTransactions: [Transaction] = []
@@ -33,16 +34,16 @@ final class HomeViewModel {
             let allTxns = try context.fetch(FetchDescriptor<Transaction>(
                 sortBy: [SortDescriptor(\.date, order: .reverse)]
             )).filter { $0.modelContext != nil }
-            
+
             let activeTxns = allTxns.filter { !$0.isArchived }
 
             totalIncome = activeTxns.filter { $0.type == .income }.reduce(.zero) { $0 + $1.money }
             totalExpenses = activeTxns.filter { $0.type == .expense }.reduce(.zero) { $0 + $1.money }
-            let totalTransfers = activeTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
-            
+            totalFundedToGoals = activeTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
+
             totalBalance = totalIncome - totalExpenses
-            expendableAmount = totalBalance - totalTransfers
-            
+            expendableAmount = totalBalance - totalFundedToGoals
+
             let incomeAmount = NSDecimalNumber(decimal: totalIncome.amount).doubleValue
             let expenseAmount = NSDecimalNumber(decimal: totalExpenses.amount).doubleValue
             savingsRate = incomeAmount.isZero ? 0.0 : max(0.0, (incomeAmount - expenseAmount) / incomeAmount)
@@ -61,11 +62,11 @@ final class HomeViewModel {
     }
 
     private func buildWeeklyChart(from transactions: [Transaction]) -> [DailyTotal] {
+        let (start, _) = TimePeriod.week.dateRange
         let calendar = Calendar.current
-        let today = Date()
 
-        return (0 ..< 7).reversed().map { offset -> DailyTotal in
-            let day = calendar.date(byAdding: .day, value: -offset, to: today)!
+        return (0 ..< 7).map { offset -> DailyTotal in
+            let day = calendar.date(byAdding: .day, value: offset, to: start)!
             let dayStart = calendar.startOfDay(for: day)
             let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)!
 
@@ -89,10 +90,14 @@ final class HomeViewModel {
     }
 }
 
-struct DailyTotal: Identifiable {
+struct DailyTotal: Identifiable, Equatable {
     let id = UUID()
     let date: Date
     let total: Money
+
+    static func == (lhs: DailyTotal, rhs: DailyTotal) -> Bool {
+        lhs.date == rhs.date && lhs.total.amount == rhs.total.amount
+    }
 
     var dayLabel: String {
         let f = DateFormatter()

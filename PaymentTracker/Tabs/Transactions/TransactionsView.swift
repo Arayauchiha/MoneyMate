@@ -1,15 +1,15 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct TransactionsView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
     @Environment(AppStateViewModel.self) private var appStateViewModel
-    
+
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @State private var transactionToDelete: Transaction?
     @State private var selectedTransactions: Set<Transaction.ID> = []
     @State private var editMode: EditMode = .inactive
-    
+
     // Alert state logic
     enum AlertType { case none, archive, delete }
     @State private var activeAlert: AlertType = .none
@@ -20,14 +20,14 @@ struct TransactionsView: View {
 
     var groupedTransactions: [(Date, [Transaction])] {
         let grouped = Dictionary(grouping: sortedFilteredTransactions) { txn in
-            Calendar.current.startOfDay(for: txn.date)
+            Calendar.current.startOfDay(for: txn.effectiveDate)
         }
         return grouped.sorted { $0.key > $1.key }
     }
 
     var body: some View {
         @Bindable var tvm = transactionViewModel
-        
+
         NavigationStack {
             List(selection: $selectedTransactions) {
                 if transactionViewModel.filteredTransactions.isEmpty {
@@ -74,7 +74,7 @@ struct TransactionsView: View {
                                 .background(.ultraThinMaterial, in: Capsule())
                                 .padding(.leading, -4)
                                 .onTapGesture {
-                                    if editMode == .inactive && !sortedFilteredTransactions.isEmpty {
+                                    if editMode == .inactive, !sortedFilteredTransactions.isEmpty {
                                         withAnimation {
                                             editMode = .active
                                             appStateViewModel.isTabBarHidden = true
@@ -108,7 +108,7 @@ struct TransactionsView: View {
                         deleteSelected()
                     }
                 }
-                Button("Cancel", role: .cancel) { }
+                Button("Cancel", role: .cancel) {}
             } message: {
                 alertMessage
             }
@@ -125,15 +125,15 @@ struct TransactionsView: View {
                             toggleSelectAll()
                         }
                     }
-                    
+
                     ToolbarItemGroup(placement: .bottomBar) {
                         Button("Archive") {
                             activeAlert = .archive
                         }
                         .disabled(selectedTransactions.isEmpty)
-                        
+
                         Spacer()
-                        
+
                         Button(role: .destructive) {
                             activeAlert = .delete
                         } label: {
@@ -145,13 +145,13 @@ struct TransactionsView: View {
                 } else {
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 12) {
-                            Button("Edit") { 
+                            Button("Edit") {
                                 withAnimation {
-                                    editMode = .active 
+                                    editMode = .active
                                     appStateViewModel.isTabBarHidden = true
                                 }
                             }
-                            
+
                             Button {
                                 transactionViewModel.presentAdd()
                             } label: {
@@ -168,7 +168,7 @@ struct TransactionsView: View {
                                 Image(systemName: transactionViewModel.activeFilterCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                                     .font(.headline)
                             }
-                            
+
                             NavigationLink(destination: ArchivedTransactionsView()) {
                                 Image(systemName: "archivebox")
                                     .font(.headline)
@@ -193,23 +193,23 @@ struct TransactionsView: View {
             }
         }
     }
-    
+
     private var alertTitle: String {
         switch activeAlert {
-        case .archive: return "Confirm Archive"
-        case .delete: return "Delete Forever"
-        case .none: return ""
+        case .archive: "Confirm Archive"
+        case .delete: "Delete Forever"
+        case .none: ""
         }
     }
-    
+
     private var alertMessage: Text {
         switch activeAlert {
         case .archive:
-            return Text("Archive \(selectedTransactions.count > 0 ? "\(selectedTransactions.count)" : "this") transaction? It will still count towards your balance.")
+            Text("Archive \(selectedTransactions.count > 0 ? "\(selectedTransactions.count)" : "this") transaction? It will still count towards your balance.")
         case .delete:
-            return Text("Everything selected will be permanently removed. This will also restore the amounts back to your available balance. This cannot be undone.")
+            Text("Everything selected will be permanently removed. This will also restore the amounts back to your available balance. This cannot be undone.")
         case .none:
-            return Text("")
+            Text("")
         }
     }
 
@@ -220,13 +220,13 @@ struct TransactionsView: View {
             selectedTransactions.removeAll()
         }
     }
-    
+
     private func toggleSelectAll() {
         withAnimation(.snappy(duration: 0.2)) {
             if selectedTransactions.count == sortedFilteredTransactions.count {
                 selectedTransactions.removeAll()
             } else {
-                selectedTransactions = Set(sortedFilteredTransactions.map { $0.id })
+                selectedTransactions = Set(sortedFilteredTransactions.map(\.id))
             }
         }
     }

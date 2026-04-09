@@ -10,7 +10,7 @@ struct UserManualView: View {
                     color: .blue,
                     description: "Your home base. See your current balance, 'Available to Save' budget, and recent activity at a glance. Insights at the bottom provide high-level monthly trends."
                 )
-                
+
                 ManualRow(
                     title: "Transactions Hub",
                     icon: "list.bullet.rectangle.fill",
@@ -20,7 +20,7 @@ struct UserManualView: View {
             } header: {
                 Text("Fundamentals")
             }
-            
+
             Section {
                 ManualRow(
                     title: "Savings Goals",
@@ -28,14 +28,14 @@ struct UserManualView: View {
                     color: .pink,
                     description: "Set a target amount and manual fund it over time. Transfers to these goals are safely deducted from your 'Available to Save' balance."
                 )
-                
+
                 ManualRow(
                     title: "Budget Caps",
                     icon: "chart.bar.xaxis",
                     color: .red,
                     description: "Set limits on specific categories (e.g., Dining). MoneyMate automatically tracks expenses against these caps; no manual funding needed!"
                 )
-                
+
                 ManualRow(
                     title: "No-Spend Challenges",
                     icon: "flame.fill",
@@ -45,7 +45,7 @@ struct UserManualView: View {
             } header: {
                 Text("Goal Tracking")
             }
-            
+
             Section {
                 ManualRow(
                     title: "Insights & Trends",
@@ -53,7 +53,7 @@ struct UserManualView: View {
                     color: .purple,
                     description: "The Insights tab breaks down your spending by category. Tap on a category to see its historical trend and associated transactions."
                 )
-                
+
                 ManualRow(
                     title: "Archive Vault",
                     icon: "archivebox.fill",
@@ -63,7 +63,7 @@ struct UserManualView: View {
             } header: {
                 Text("Data & Analysis")
             }
-            
+
             Section {
                 ManualRow(
                     title: "Security & Export",
@@ -85,7 +85,7 @@ struct ManualRow: View {
     let icon: String
     let color: Color
     let description: String
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
@@ -97,12 +97,12 @@ struct ManualRow: View {
                         .font(.headline)
                 }
                 .frame(width: 40, height: 40)
-                
+
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(.primary)
             }
-            
+
             Text(description)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

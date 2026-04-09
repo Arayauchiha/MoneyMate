@@ -1,41 +1,47 @@
-import SwiftUI
 import Charts
+import SwiftData
+import SwiftUI
 
 enum TrendUnit: String, CaseIterable, Identifiable {
     case day = "Daily"
     case week = "Weekly"
     case month = "Monthly"
-    var id: String { self.rawValue }
-    
+    var id: String {
+        rawValue
+    }
+
     var descriptor: String {
         switch self {
-        case .day: return "Last 14 days of spending activity"
-        case .week: return "Week-by-week trends"
-        case .month: return "Month-by-month historical data"
+        case .day: "Last 14 days of spending activity"
+        case .week: "Week-by-week trends"
+        case .month: "Month-by-month historical data"
         }
     }
 }
 
 struct TrendDetailView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
-    
+    @Environment(InsightsViewModel.self) private var insightsViewModel
+    @Query private var allTransactions: [Transaction]
+
     let dailyData: [TrendTotal]
     let weeklyData: [TrendTotal]
     let monthlyData: [TrendTotal]
-    
+
     @State private var selectedUnit: TrendUnit = .month
-    
+    @State private var selectedTrend: TrendTotal?
+
     init(daily: [TrendTotal], weekly: [TrendTotal], monthly: [TrendTotal]) {
-        self.dailyData = daily
-        self.weeklyData = weekly
-        self.monthlyData = monthly
+        dailyData = daily
+        weeklyData = weekly
+        monthlyData = monthly
     }
 
     var currentData: [TrendTotal] {
         switch selectedUnit {
-        case .day: return dailyData
-        case .week: return weeklyData
-        case .month: return monthlyData
+        case .day: dailyData
+        case .week: weeklyData
+        case .month: monthlyData
         }
     }
 
@@ -49,7 +55,7 @@ struct TrendDetailView: View {
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
-                
+
                 Text(selectedUnit.descriptor)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -57,7 +63,7 @@ struct TrendDetailView: View {
             .padding(.vertical, 12)
             .background(Color(uiColor: .systemGroupedBackground))
             .zIndex(1)
-            
+
             List {
                 Section {
                     Chart(currentData) { trend in
@@ -81,8 +87,10 @@ struct TrendDetailView: View {
                     } else {
                         ForEach(currentData.reversed()) { trend in
                             let (start, end) = rangeFor(trend: trend)
-                            
-                            NavigationLink(destination: CategoryDetailView(category: nil, startDate: start, endDate: end, isDateSummary: true)) {
+
+                            NavigationLink {
+                                TrendBreakdownView(title: trend.label, startDate: start, endDate: end, total: trend.total)
+                            } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(trend.label)
@@ -93,9 +101,10 @@ struct TrendDetailView: View {
                                     }
                                     Spacer()
                                     Text(trend.total.formatted(with: appStateViewModel.userCurrency))
-                                        .font(.subheadline).bold()
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(.secondary)
                                 }
-                                .padding(.vertical, 4)
+                                .padding(.vertical, 8)
                             }
                         }
                     }
@@ -105,20 +114,20 @@ struct TrendDetailView: View {
         .navigationTitle("Spending Trends")
         .navigationBarTitleDisplayMode(.inline)
     }
-    
+
     private var subLabel: String {
         switch selectedUnit {
-        case .day: return "Day Summary"
-        case .week: return "Week Summary"
-        case .month: return "Month Summary"
+        case .day: "Day Summary"
+        case .week: "Week Summary"
+        case .month: "Month Summary"
         }
     }
-    
+
     private func rangeFor(trend: TrendTotal) -> (Date, Date) {
         let calendar = Calendar.current
         let start: Date
         let end: Date
-        
+
         switch selectedUnit {
         case .day:
             start = calendar.startOfDay(for: trend.date)
@@ -131,5 +140,23 @@ struct TrendDetailView: View {
             end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: start)!
         }
         return (start, end)
+    }
+
+    private func computeBreakdown(start: Date, end: Date) -> [CategoryTotal] {
+        let txns = allTransactions.filter {
+            !$0.isArchived &&
+                $0.type == .expense &&
+                $0.date >= start &&
+                $0.date <= end
+        }
+
+        // Manual grouping
+        let uncategorisedID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+        let grouped = Dictionary(grouping: txns, by: { $0.category?.id ?? uncategorisedID })
+        return grouped.map { _, tList -> CategoryTotal in
+            let total = tList.reduce(Money.zero) { $0 + $1.money }
+            let category = tList.first { $0.category != nil }?.category
+            return CategoryTotal(category: category, total: total, transactionCount: tList.count)
+        }.sorted { $0.total.amount > $1.total.amount }
     }
 }
