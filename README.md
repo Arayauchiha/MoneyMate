@@ -40,9 +40,9 @@ MoneyMate is built with a focus on scalability and performance:
 - **Precision Accounting:** Uses a dedicated `Money` struct for all currency calculations to prevent floating-point errors.
 
 ## 🛠️ Requirements
-- **iOS 17.0+** (Required for SwiftData and latest SwiftUI features)
-- **Xcode 15.0+**
-- **Swift 5.9+**
+- **iOS 26.0+** (Required for SwiftData and latest SwiftUI features)
+- **Xcode 26.4.0+**
+- **Swift 6.2+**
 
 ---
 *Built with precision for the modern personal finance enthusiast.*
