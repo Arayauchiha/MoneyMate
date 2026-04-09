@@ -9,7 +9,7 @@ final class TransactionViewModel {
     var searchQuery: String = "" {
         didSet { applyFilters() }
     }
-    
+
     var dataVersion: Int = 0
 
     var selectedType: TransactionType? {
@@ -166,7 +166,7 @@ final class TransactionViewModel {
         // Remove from local arrays first to prevent UI access during deletion
         allTransactions.removeAll { $0.id == transaction.id }
         applyFilters()
-        
+
         context.delete(transaction)
         save(context: context)
         Task { @MainActor in
@@ -177,7 +177,7 @@ final class TransactionViewModel {
     @MainActor
     func deleteMultiplePermanently(_ transactions: [Transaction]) {
         guard let context = modelContext else { return }
-        let ids = Set(transactions.map { $0.id })
+        let ids = Set(transactions.map(\.id))
         allTransactions.removeAll { ids.contains($0.id) }
         applyFilters()
 
@@ -204,7 +204,7 @@ final class TransactionViewModel {
         var expanded: [Transaction] = []
         for txn in base {
             if txn.repeatFrequency == "never" {
-                txn.displayDate = nil  // ensure no stale display date
+                txn.displayDate = nil // ensure no stale display date
                 expanded.append(txn)
             } else {
                 let dates = txn.occurrenceDates(upTo: today)
@@ -279,13 +279,13 @@ final class TransactionViewModel {
     func cleanupOldArchives() {
         guard let context = modelContext else { return }
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-        
+
         let toDelete = allTransactions.filter { txn in
             txn.isArchived && (txn.archivedDate ?? .distantPast) < thirtyDaysAgo
         }
-        
+
         guard !toDelete.isEmpty else { return }
-        
+
         for txn in toDelete {
             context.delete(txn)
         }

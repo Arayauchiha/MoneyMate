@@ -24,11 +24,11 @@ final class InsightsViewModel {
     var dailyTrend: [TrendTotal] = []
     var monthlyComparisonTrends: [ComparisonTrend] = []
     var daysInPeriod: Int = 1
-    
+
     var customMonth: Date? {
         didSet { Task { await load() } }
     }
-    
+
     var currentMonthYearDisplay: String {
         // If a specific month is manually selected, show it
         if let customMonth {
@@ -73,11 +73,11 @@ final class InsightsViewModel {
     var lastTwelveMonths: [Date] {
         let calendar = Calendar.current
         let today = Date()
-        return (0..<12).compactMap { i in
+        return (0 ..< 12).compactMap { i in
             calendar.date(byAdding: .month, value: -i, to: today)
         }
     }
-    
+
     private var isSelectingCustomMonth = false
 
     func selectMonth(_ date: Date?) {
@@ -90,7 +90,7 @@ final class InsightsViewModel {
         }
         Task { await load() }
     }
-    
+
     private var modelContext: ModelContext?
 
     func configure(context: ModelContext) {
@@ -121,7 +121,7 @@ final class InsightsViewModel {
             } else {
                 (start, end) = selectedPeriod.dateRange
             }
-            
+
             let periodTxns = activeTxns.filter { $0.date >= start && $0.date <= end && $0.type == .expense }
 
             daysInPeriod = max(1, Calendar.current.dateComponents([.day], from: start, to: end).day ?? 1)
@@ -134,7 +134,7 @@ final class InsightsViewModel {
             totalFundedToGoals = activeTxns
                 .filter { $0.date >= start && $0.date <= end && $0.type == .transfer && $0.linkedGoal != nil }
                 .reduce(.zero) { $0 + $1.money }
-            
+
             averagePerDay = computeAveragePerDay(total: totalForPeriod, from: start, to: end)
             weekComparison = buildWeekComparison(from: activeTxns)
             monthlyTrend = buildMonthlyTrend(from: activeTxns)
@@ -205,12 +205,12 @@ final class InsightsViewModel {
     private func buildWeeklyTrend(from transactions: [Transaction]) -> [TrendTotal] {
         let calendar = Calendar.current
         let expenses = transactions.filter { $0.type == .expense }
-        
+
         let grouped = Dictionary(
             grouping: expenses,
             by: { calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: $0.date) }
         )
-        
+
         return grouped
             .map { components, txns -> TrendTotal in
                 let date = calendar.date(from: components) ?? Date()
@@ -227,15 +227,15 @@ final class InsightsViewModel {
         let today = Date()
         let cutoff = calendar.date(byAdding: .day, value: -14, to: today)! // Last 14 days
         let expenses = transactions.filter { $0.type == .expense && $0.date >= cutoff }
-        
+
         let grouped = Dictionary(
             grouping: expenses,
             by: { calendar.startOfDay(for: $0.date) }
         )
-        
+
         let formatter = DateFormatter()
         formatter.dateFormat = "d MMM"
-        
+
         return grouped
             .map { date, txns -> TrendTotal in
                 let total = txns.reduce(Money.zero) { $0 + $1.money }
@@ -243,6 +243,7 @@ final class InsightsViewModel {
             }
             .sorted { $0.date < $1.date }
     }
+
     private func buildMonthlyComparisonTrends(from transactions: [Transaction]) -> [ComparisonTrend] {
         let calendar = Calendar.current
         let formatter = DateFormatter()
@@ -272,7 +273,7 @@ struct ComparisonTrend: Identifiable, Hashable {
     let income: Money
     let expense: Money
     let date: Date
-    
+
     var savings: Money {
         income - expense
     }
@@ -289,7 +290,7 @@ struct CategoryTotal: Identifiable, Equatable {
         self.total = total
         self.transactionCount = transactionCount
         // Stable ID based on category; 0000... for "Other"
-        self.id = category?.id ?? UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+        id = category?.id ?? UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     }
 
     static func == (lhs: CategoryTotal, rhs: CategoryTotal) -> Bool {

@@ -1,6 +1,6 @@
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 struct WeeklySpendingDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -8,9 +8,9 @@ struct WeeklySpendingDetailView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
 
     @Query private var allTransactions: [Transaction]
-    @State private var selectedDay: String? = nil
+    @State private var selectedDay: String?
     @State private var isAnimated = false
-    
+
     init() {
         let descriptor = FetchDescriptor<Transaction>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
@@ -22,7 +22,7 @@ struct WeeklySpendingDetailView: View {
         let (start, _) = TimePeriod.week.dateRange
         return allTransactions.filter { $0.date >= start && !$0.isArchived && $0.type == .expense }
     }
-    
+
     var categoriesInWeek: [(category: Category?, amount: Money)] {
         let grouped = Dictionary(grouping: weeklyTransactions, by: { $0.category })
         return grouped.map { ($0.key, $0.value.reduce(Money.zero) { $0 + $1.money }) }
@@ -61,7 +61,7 @@ struct WeeklySpendingDetailView: View {
                 }
             }
             .padding(.horizontal, 4)
-            
+
             Chart {
                 ForEach(homeViewModel.weeklyChartData) { dataPoint in
                     let isSelected = selectedDay == nil || selectedDay == dataPoint.dayLabel
@@ -72,14 +72,14 @@ struct WeeklySpendingDetailView: View {
                     .foregroundStyle(FintechDesign.brandGradient.opacity(isSelected ? 1.0 : 0.3))
                     .cornerRadius(6)
                 }
-                
+
                 if let selectedDay {
                     RuleMark(x: .value("Day", selectedDay))
                         .foregroundStyle(FintechDesign.adaptiveColor("1A1A1A", "FFFFFF").opacity(0.1))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4]))
                 }
             }
-            .chartYScale(domain: 0...(homeViewModel.weeklyChartData.map { $0.total.amount }.max() ?? 100))
+            .chartYScale(domain: 0 ... (homeViewModel.weeklyChartData.map(\.total.amount).max() ?? 100))
             .chartYAxis {
                 AxisMarks(position: .leading) {
                     AxisGridLine()
@@ -122,7 +122,7 @@ struct WeeklySpendingDetailView: View {
                 }
             }
             .sensoryFeedback(.selection, trigger: selectedDay)
-            
+
             Text("Tap or hold on a bar to see daily amount")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -137,7 +137,7 @@ struct WeeklySpendingDetailView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .padding(.bottom, 16)
-            
+
             if categoriesInWeek.isEmpty {
                 Text("No spending this week.")
                     .padding(24)

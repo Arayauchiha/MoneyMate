@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 enum GoalFormMode {
     case add
@@ -11,7 +11,7 @@ struct GoalFormView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+
     @Query(sort: \Category.name) private var categories: [Category]
 
     let mode: GoalFormMode
@@ -22,7 +22,7 @@ struct GoalFormView: View {
     @State private var startDate: Date = .now
     @State private var deadline: Date = Calendar.current.date(byAdding: .month, value: 1, to: .now)!
     @State private var blockedCategories: [Category] = []
-    
+
     @State private var isAddingCustomCategory = false
     @State private var customCategoryName = ""
 
@@ -56,9 +56,9 @@ struct GoalFormView: View {
                             Text(type.label).foregroundStyle(.secondary)
                         }
                     }
-                    
+
                     TextField("Title", text: $title)
-                    
+
                     if type != .noSpend {
                         HStack {
                             Text(appStateViewModel.userCurrency)
@@ -68,14 +68,14 @@ struct GoalFormView: View {
                         }
                     }
                 }
-                
+
                 Section("Timeframe") {
                     if type != .savings {
                         DatePicker("Start Date", selection: $startDate, displayedComponents: .date)
                     }
                     DatePicker("Deadline", selection: $deadline, in: startDate..., displayedComponents: .date)
                 }
-                
+
                 if type == .budgetCap || type == .noSpend || type == .dailyLimit {
                     Section {
                         if categories.isEmpty {
@@ -88,13 +88,13 @@ struct GoalFormView: View {
                                 }
                             }
                         }
-                        
+
                         if isAddingCustomCategory {
                             HStack {
                                 TextField("New Category Name", text: $customCategoryName)
                                 Button("Add") {
                                     let cleaned = customCategoryName.trimmingCharacters(in: .whitespaces)
-                                    if !cleaned.isEmpty && !categories.contains(where: { $0.name.lowercased() == cleaned.lowercased() }) {
+                                    if !cleaned.isEmpty, !categories.contains(where: { $0.name.lowercased() == cleaned.lowercased() }) {
                                         let newCat = Category(name: cleaned, iconName: "star.fill", colorHex: "BDC3C7", isSystem: false)
                                         modelContext.insert(newCat)
                                         blockedCategories.append(newCat)
@@ -109,7 +109,7 @@ struct GoalFormView: View {
                                 isAddingCustomCategory = true
                             }
                         }
-                        
+
                     } header: {
                         Text("Monitored Categories")
                     } footer: {
@@ -127,7 +127,7 @@ struct GoalFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     let isTitleValid = !title.trimmingCharacters(in: .whitespaces).isEmpty
                     let isAmountInValid = type != .noSpend && (Decimal(string: targetAmountText.replacingOccurrences(of: ",", with: ".")) ?? 0) <= 0
-                    
+
                     Button("Save", role: .confirm) { save() }
                         .disabled(!isTitleValid || isAmountInValid)
                 }
@@ -142,7 +142,7 @@ struct GoalFormView: View {
             }
         }
     }
-    
+
     private func binding(for category: Category) -> Binding<Bool> {
         Binding(
             get: {
@@ -183,7 +183,7 @@ struct GoalFormView: View {
             goalsViewModel.add(title: title, type: type, targetAmount: amount, startDate: startDate, deadline: deadline, blockedCategories: blockedCategories)
             successMessage = "New goal '\(title)' created successfully!"
         }
-        
+
         showSuccessAlert = true
     }
 }

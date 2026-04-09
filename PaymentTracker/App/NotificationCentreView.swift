@@ -1,7 +1,8 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 // MARK: - Smart Nudge Model
+
 struct SmartNudge: Identifiable {
     let id = UUID()
     let icon: String
@@ -11,6 +12,7 @@ struct SmartNudge: Identifiable {
 }
 
 // MARK: - Notification Centre View
+
 struct NotificationCentreView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -141,7 +143,6 @@ struct NotificationCentreView: View {
         }
     }
 
-    @ViewBuilder
     private func notifRow(_ notif: AppNotification) -> some View {
         HStack(spacing: 14) {
             // Icon circle
@@ -264,7 +265,7 @@ struct NotificationCentreView: View {
         let weekdayAvg = weekdayTxns.reduce(Decimal(0)) { $0 + $1.money.amount } / Decimal(weekdayDays)
         let weekendAvg = weekendTxns.reduce(Decimal(0)) { $0 + $1.money.amount } / Decimal(weekendDays)
 
-        if weekendAvg > weekdayAvg * 1.5 && weekendDays > 1 {
+        if weekendAvg > weekdayAvg * 1.5, weekendDays > 1 {
             let ratio = Int((((weekendAvg / weekdayAvg) - 1) * 100 as NSDecimalNumber).doubleValue)
             nudges.append(SmartNudge(
                 icon: "sun.max.fill",
@@ -282,7 +283,7 @@ struct NotificationCentreView: View {
             let grouped = Dictionary(grouping: thisMonth) { $0.category?.name ?? "Misc" }
             if let topCat = grouped.max(by: { a, b in
                 a.value.reduce(Decimal(0)) { $0 + $1.money.amount } <
-                b.value.reduce(Decimal(0)) { $0 + $1.money.amount }
+                    b.value.reduce(Decimal(0)) { $0 + $1.money.amount }
             }) {
                 let total = topCat.value.reduce(Decimal(0)) { $0 + $1.money.amount }
                 nudges.append(SmartNudge(
@@ -302,9 +303,9 @@ struct NotificationCentreView: View {
             let currentMoney = Money(currentAmount)
             let status = goal.status(currentAmount: currentMoney)
             let progress = goal.progress(currentAmount: currentMoney)
-            
+
             if status != .achieved {
-                if progress >= 0.8 && progress < 1.0 {
+                if progress >= 0.8, progress < 1.0 {
                     let remaining = Int((1.0 - progress) * 100)
                     nudges.append(SmartNudge(
                         icon: "target",

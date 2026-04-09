@@ -1,16 +1,16 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ArchivedTransactionsView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
     @Environment(AppStateViewModel.self) private var appStateViewModel
     @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<Transaction> { $0.isArchived == true }, sort: \.date, order: .reverse) private var archivedTransactions: [Transaction]
-    
+
     @State private var transactionToDelete: Transaction?
     @State private var selectedTransactions: Set<Transaction.ID> = []
     @State private var editMode: EditMode = .inactive
-    
+
     // Combined alert state
     enum AlertType { case none, delete, restore }
     @State private var activeAlert: AlertType = .none
@@ -19,7 +19,7 @@ struct ArchivedTransactionsView: View {
         ZStack(alignment: .bottom) {
             Color(uiColor: .systemGroupedBackground)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 0) {
                 if archivedTransactions.isEmpty {
                     ContentUnavailableView {
@@ -31,46 +31,46 @@ struct ArchivedTransactionsView: View {
                 } else {
                     List(selection: $selectedTransactions) {
                         Section {
-                             ForEach(archivedTransactions) { txn in
-                                 TransactionCard(transaction: txn) {
-                                     if editMode == .inactive {
-                                         transactionViewModel.presentEdit(txn)
-                                     }
-                                 }
-                                     .tag(txn.id)
-                                     .swipeActions(edge: .leading) {
-                                         if editMode == .inactive {
-                                             Button {
-                                                 transactionToDelete = txn
-                                                 activeAlert = .restore
-                                             } label: {
-                                                 Label("Restore", systemImage: "arrow.uturn.backward")
-                                             }
-                                             .tint(.green)
-                                         }
-                                     }
-                                     .swipeActions(edge: .trailing) {
-                                         if editMode == .inactive {
-                                             Button {
-                                                 transactionToDelete = txn
-                                                 activeAlert = .delete
-                                             } label: {
-                                                 Label("Delete Forever", systemImage: "trash.fill")
-                                             }
-                                         }
-                                     }
-                                     .contextMenu {
-                                         if editMode == .inactive {
-                                             Button { transactionViewModel.presentEdit(txn) } label: { Label("Edit", systemImage: "pencil") }
-                                             Button { transactionToDelete = txn; activeAlert = .restore } label: { Label("Restore", systemImage: "arrow.uturn.backward") }
-                                             Button(role: .destructive) { transactionToDelete = txn; activeAlert = .delete } label: { Label("Delete Forever", systemImage: "trash") }
-                                         }
-                                     }
-                                     .listRowSeparator(.hidden)
-                                     .listRowBackground(Color.clear)
-                                     .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-                             }
-                            
+                            ForEach(archivedTransactions) { txn in
+                                TransactionCard(transaction: txn) {
+                                    if editMode == .inactive {
+                                        transactionViewModel.presentEdit(txn)
+                                    }
+                                }
+                                .tag(txn.id)
+                                .swipeActions(edge: .leading) {
+                                    if editMode == .inactive {
+                                        Button {
+                                            transactionToDelete = txn
+                                            activeAlert = .restore
+                                        } label: {
+                                            Label("Restore", systemImage: "arrow.uturn.backward")
+                                        }
+                                        .tint(.green)
+                                    }
+                                }
+                                .swipeActions(edge: .trailing) {
+                                    if editMode == .inactive {
+                                        Button {
+                                            transactionToDelete = txn
+                                            activeAlert = .delete
+                                        } label: {
+                                            Label("Delete Forever", systemImage: "trash.fill")
+                                        }
+                                    }
+                                }
+                                .contextMenu {
+                                    if editMode == .inactive {
+                                        Button { transactionViewModel.presentEdit(txn) } label: { Label("Edit", systemImage: "pencil") }
+                                        Button { transactionToDelete = txn; activeAlert = .restore } label: { Label("Restore", systemImage: "arrow.uturn.backward") }
+                                        Button(role: .destructive) { transactionToDelete = txn; activeAlert = .delete } label: { Label("Delete Forever", systemImage: "trash") }
+                                    }
+                                }
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
+                            }
+
                             // Spacer item within the SAME section to avoid extra separators
                             Color.clear
                                 .frame(height: 140)
@@ -82,7 +82,7 @@ struct ArchivedTransactionsView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
-            
+
             // Subdued Info Watermark at fixed bottom
             if !archivedTransactions.isEmpty {
                 VStack(spacing: 6) {
@@ -113,15 +113,15 @@ struct ArchivedTransactionsView: View {
                         toggleSelectAll()
                     }
                 }
-                
+
                 ToolbarItemGroup(placement: .bottomBar) {
                     Button("Restore") {
                         activeAlert = .restore
                     }
                     .disabled(selectedTransactions.isEmpty)
-                    
+
                     Spacer()
-                    
+
                     Button(role: .destructive) {
                         activeAlert = .delete
                     } label: {
@@ -151,7 +151,7 @@ struct ArchivedTransactionsView: View {
             if activeAlert == .delete {
                 Button("Delete Permanently", role: .destructive) {
                     if let toDelete = transactionToDelete {
-                        transactionToDelete = nil 
+                        transactionToDelete = nil
                         // Delay deletion slightly to let UI loop clear references
                         Task { @MainActor in
                             try? await Task.sleep(nanoseconds: 50_000_000) // 0.05s
@@ -170,7 +170,7 @@ struct ArchivedTransactionsView: View {
                     }
                 }
             }
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
         } message: {
             alertMessage
         }
@@ -179,15 +179,15 @@ struct ArchivedTransactionsView: View {
             exitEditMode()
         }
     }
-    
+
     private var alertTitle: String {
         switch activeAlert {
-        case .delete: return "Permanent Delete"
-        case .restore: return "Restore"
-        case .none: return ""
+        case .delete: "Permanent Delete"
+        case .restore: "Restore"
+        case .none: ""
         }
     }
-    
+
     private var alertMessage: Text {
         let count = transactionToDelete != nil ? 1 : selectedTransactions.count
         switch activeAlert {
@@ -199,7 +199,7 @@ struct ArchivedTransactionsView: View {
             return Text("")
         }
     }
-    
+
     private func exitEditMode() {
         withAnimation {
             editMode = .inactive
@@ -213,7 +213,7 @@ struct ArchivedTransactionsView: View {
             if selectedTransactions.count == archivedTransactions.count {
                 selectedTransactions.removeAll()
             } else {
-                selectedTransactions = Set(archivedTransactions.map { $0.id })
+                selectedTransactions = Set(archivedTransactions.map(\.id))
             }
         }
     }
@@ -226,12 +226,12 @@ struct ArchivedTransactionsView: View {
 
     private func deleteSelected() {
         let targets = archivedTransactions.filter { selectedTransactions.contains($0.id) }
-        
+
         // Hide UI state synchronously
         selectedTransactions.removeAll()
         editMode = .inactive
         appStateViewModel.isTabBarHidden = false
-        
+
         // Delay actual context mutation to allow views to finish rendering the removal
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s

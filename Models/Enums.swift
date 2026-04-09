@@ -136,31 +136,31 @@ enum TimePeriod: String, CaseIterable, Identifiable {
     var dateRange: (start: Date, end: Date) {
         let calendar = Calendar.current
         let today = Date()
-        
+
         switch self {
         case .week:
             var current = calendar.startOfDay(for: today)
             while calendar.component(.weekday, from: current) != 2 {
                 current = calendar.date(byAdding: .day, value: -1, to: current)!
             }
-            
+
             let start = current
             let sunday = calendar.date(byAdding: .day, value: 6, to: start)!
             let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: sunday)!
-            
+
             return (start, end)
-        
+
         case .month:
             let start = calendar.date(from: calendar.dateComponents([.year, .month], from: today))!
             let end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: start)!
             return (start, calendar.date(bySettingHour: 23, minute: 59, second: 59, of: end)!)
-            
+
         case .threeMonths:
             let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: today))!
             let start = calendar.date(byAdding: .month, value: -2, to: monthStart)!
             let end = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: monthStart)!
             return (start, calendar.date(bySettingHour: 23, minute: 59, second: 59, of: end)!)
-            
+
         case .year:
             let start = calendar.date(from: calendar.dateComponents([.year], from: today))!
             let end = calendar.date(byAdding: DateComponents(year: 1, day: -1), to: start)!

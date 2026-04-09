@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 enum AddEditTransactionMode {
     case add
@@ -12,7 +12,7 @@ struct AddEditTransactionView: View {
     @Environment(GoalsViewModel.self) private var goalsViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    
+
     @Query(sort: \Category.name) private var categories: [Category]
 
     let mode: AddEditTransactionMode
@@ -25,7 +25,7 @@ struct AddEditTransactionView: View {
     @State private var title: String = ""
     @State private var note: String = ""
     @State private var customCategoryName: String = ""
-    @State private var selectedGoal: Goal? = nil
+    @State private var selectedGoal: Goal?
 
     @State private var showSuccessAlert = false
     @State private var successMessage = ""
@@ -39,7 +39,7 @@ struct AddEditTransactionView: View {
         if case let .edit(t) = mode { return t }
         return nil
     }
-    
+
     private var sortedCategories: [Category] {
         let regulars = categories.filter { $0.name != "Miscellaneous" }
         let other = categories.first { $0.name == "Miscellaneous" }
@@ -68,7 +68,7 @@ struct AddEditTransactionView: View {
                 Section {
                     TextField("Title (e.g. Tuition Fee)", text: $title)
                         .font(.headline)
-                    
+
                     HStack {
                         Text(appStateViewModel.userCurrency)
                             .foregroundStyle(.secondary)
@@ -77,10 +77,10 @@ struct AddEditTransactionView: View {
                             .font(.title2)
                     }
                 }
-                
+
                 Section {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
-                    
+
                     Picker("Repeat", selection: $repeatFrequency) {
                         Text("Never").tag("never")
                         Text("Daily").tag("daily")
@@ -88,29 +88,29 @@ struct AddEditTransactionView: View {
                         Text("Monthly").tag("monthly")
                         Text("Yearly").tag("yearly")
                     }
-                    
+
                     Picker("Category", selection: $category) {
                         Label("Uncategorised", systemImage: "questionmark.circle")
                             .tag(Category?.none)
-                        
+
                         Divider()
-                        
+
                         ForEach(sortedCategories) { cat in
                             Label(cat.name, systemImage: cat.iconName)
                                 .tag(Category?.some(cat))
                         }
-                        
+
                         Divider()
-                        
+
                         Label("Create New Category", systemImage: "plus.circle")
                             .tag(Category?.some(Category(name: "__create_new__", iconName: "star.fill", colorHex: "BDC3C7")))
                     }
-                    
+
                     if category?.name == "__create_new__" {
                         TextField("New Category Name", text: $customCategoryName)
                     }
                 }
-                
+
                 if type == .transfer {
                     Section("Link to Goal") {
                         Picker("Goal", selection: $selectedGoal) {
@@ -121,10 +121,10 @@ struct AddEditTransactionView: View {
                         }
                     }
                 }
-                
+
                 Section("Note") {
                     TextField("Personal memo", text: $note, axis: .vertical)
-                        .lineLimit(3...10)
+                        .lineLimit(3 ... 10)
                 }
             }
             .scrollDismissesKeyboard(.interactively)
@@ -138,7 +138,7 @@ struct AddEditTransactionView: View {
                     let amountValue = Decimal(string: amountText.replacingOccurrences(of: ",", with: ".")) ?? 0
                     let isTitleValid = !title.trimmingCharacters(in: .whitespaces).isEmpty
                     let isCategoryValid = category?.name != "__create_new__" || !customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty
-                    
+
                     Button("Save", role: .confirm) { save() }
                         .disabled(amountValue <= 0 || !isTitleValid || !isCategoryValid)
                 }
@@ -174,7 +174,7 @@ struct AddEditTransactionView: View {
         let cleaned = amountText.filter { $0.isNumber || String($0) == separator }
         guard let decimalAmount = Decimal(string: cleaned) else { return }
         let money = Money(decimalAmount)
-        
+
         var finalCategory = category
         if category?.name == "__create_new__", !customCategoryName.trimmingCharacters(in: .whitespaces).isEmpty {
             let cleanedName = customCategoryName.trimmingCharacters(in: .whitespaces)
@@ -196,7 +196,7 @@ struct AddEditTransactionView: View {
             transactionViewModel.add(amount: money, type: type, category: finalCategory, date: date, title: title, note: note, repeatFrequency: repeatFrequency, linkedGoal: selectedGoal)
             successMessage = "Successfully added \(title)"
         }
-        
+
         showSuccessAlert = true
     }
 }

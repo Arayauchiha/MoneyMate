@@ -1,8 +1,8 @@
-import SwiftUI
 import Charts
 import SwiftData
+import SwiftUI
 
-// Vivid palette to override dull category colors in the chart
+/// Vivid palette to override dull category colors in the chart
 private let vividPalette: [Color] = [
     Color(hex: "FF6B6B"), // Coral red
     Color(hex: "4ECDC4"), // Teal
@@ -13,7 +13,7 @@ private let vividPalette: [Color] = [
     Color(hex: "FDCB6E"), // Amber
     Color(hex: "74B9FF"), // Sky blue
     Color(hex: "E17055"), // Burnt orange
-    Color(hex: "6C5CE7"), // Deep purple
+    Color(hex: "6C5CE7") // Deep purple
 ]
 
 struct TrendBreakdownView: View {
@@ -30,9 +30,9 @@ struct TrendBreakdownView: View {
     private var filteredTransactions: [Transaction] {
         allTransactions.filter {
             !$0.isArchived &&
-            $0.type == .expense &&
-            $0.date >= startDate &&
-            $0.date <= endDate
+                $0.type == .expense &&
+                $0.date >= startDate &&
+                $0.date <= endDate
         }
     }
 
@@ -53,7 +53,6 @@ struct TrendBreakdownView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-
                 // Summary Header
                 VStack(spacing: 8) {
                     Text("Total Spent")
@@ -77,7 +76,7 @@ struct TrendBreakdownView: View {
                         Text("Category Breakdown")
                             .font(.headline)
 
-                        let maxAmount = breakdown.map { $0.total.amount }.max() ?? 1
+                        let maxAmount = breakdown.map(\.total.amount).max() ?? 1
 
                         Chart(Array(breakdown.enumerated()), id: \.element.id) { index, item in
                             BarMark(
@@ -98,7 +97,7 @@ struct TrendBreakdownView: View {
                                     .foregroundStyle(vividColor(for: index))
                             }
                         }
-                        .chartXScale(domain: 0...(maxAmount * 1.3))
+                        .chartXScale(domain: 0 ... (maxAmount * 1.3))
                         .chartXAxis(.hidden)
                         .chartYAxis {
                             AxisMarks { _ in

@@ -19,10 +19,10 @@ struct FundGoalView: View {
                         Image(systemName: "hand.holding.heart.fill")
                             .font(.system(size: 40))
                             .foregroundStyle(.blue.gradient)
-                        
+
                         Text(goal.title)
                             .font(.headline)
-                        
+
                         VStack(spacing: 4) {
                             Text("Available to Save")
                                 .font(.caption2)
@@ -36,26 +36,26 @@ struct FundGoalView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    
+
                     Divider()
                         .padding(.horizontal, 40)
-                    
+
                     VStack(spacing: 12) {
                         let current = goalsViewModel.currentAmount(for: goal).amount
                         let target = goal.targetAmount.amount
                         let needed = max(0, target - current)
                         let progress = target > 0 ? (Double(truncating: current as NSNumber) / Double(truncating: target as NSNumber)) : 0
-                        
+
                         Text("Goal Progress")
                             .font(.system(size: 10, weight: .black))
                             .textCase(.uppercase)
                             .foregroundStyle(.secondary)
                             .tracking(1)
-                        
+
                         ProgressView(value: progress)
                             .tint(goalsViewModel.status(for: goal).color)
                             .padding(.horizontal, 40)
-                        
+
                         HStack(spacing: 8) {
                             Text("\(Int(progress * 100))% Funded")
                             Text("•")
@@ -67,7 +67,7 @@ struct FundGoalView: View {
                     .padding(.vertical, 16)
                 }
                 .listRowBackground(Color.clear)
-                
+
                 Section {
                     HStack {
                         Text(Locale.current.currencySymbol ?? "$")
@@ -99,7 +99,7 @@ struct FundGoalView: View {
                 }
             }
             .alert("Transfer Failed", isPresented: $showErrorAlert) {
-                Button("OK", role: .cancel) { }
+                Button("OK", role: .cancel) {}
             } message: {
                 Text(errorMessage)
             }
@@ -116,30 +116,30 @@ struct FundGoalView: View {
         let cleaned = amountText.filter { $0.isNumber || String($0) == separator }
         let amountDecimal = Decimal(string: cleaned) ?? .zero
         let amount = Money(amountDecimal)
-        
+
         let available = goalsViewModel.availableToSave
-        
+
         if amountDecimal <= 0 {
             errorMessage = "Please enter a valid positive amount."
             showErrorAlert = true
             return
         }
-        
+
         let current = goalsViewModel.currentAmount(for: goal).amount
         let needed = max(0, goal.targetAmount.amount - current)
-        
+
         if amountDecimal > needed {
             errorMessage = "You only need \(Money(needed).formatted) more to achieve this goal. Please adjust your amount."
             showErrorAlert = true
             return
         }
-        
+
         if amountDecimal > available.amount {
             errorMessage = "You only have \(available.formatted) available to save. Please enter a smaller amount."
             showErrorAlert = true
             return
         }
-        
+
         goalsViewModel.fund(goal: goal, amount: amount)
         successMessage = "Nice work! You've successfully funded \(amount.formatted) towards '\(goal.title)'."
         showSuccessAlert = true

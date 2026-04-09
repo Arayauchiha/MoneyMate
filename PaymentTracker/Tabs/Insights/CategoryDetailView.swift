@@ -1,18 +1,20 @@
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 enum DetailResolution: String, CaseIterable, Identifiable {
     case day = "Day"
     case week = "Week"
     case month = "Month"
-    var id: String { self.rawValue }
-    
+    var id: String {
+        rawValue
+    }
+
     var icon: String {
         switch self {
-        case .day: return "calendar.day.timeline.left"
-        case .week: return "calendar.badge.clock"
-        case .month: return "calendar"
+        case .day: "calendar.day.timeline.left"
+        case .week: "calendar.badge.clock"
+        case .month: "calendar"
         }
     }
 }
@@ -21,44 +23,42 @@ struct CategoryDetailView: View {
     @Environment(TransactionViewModel.self) private var transactionViewModel
     let category: Category?
     let isDateSummary: Bool
-    
+
     @State private var currentStart: Date
     @State private var currentEnd: Date
     @State private var resolution: DetailResolution
     @State private var pickerDate: Date // Independent state for the picker to prevent auto-snapping to 1st
-    
+
     @State private var isPeriodPickerPresented = false
-    
+
     @Query private var transactions: [Transaction]
-    
+
     init(category: Category?, startDate: Date, endDate: Date, isDateSummary: Bool = false) {
         self.category = category
         self.isDateSummary = isDateSummary
-        self._currentStart = State(initialValue: startDate)
-        self._currentEnd = State(initialValue: endDate)
-        self._pickerDate = State(initialValue: startDate)
-        
+        _currentStart = State(initialValue: startDate)
+        _currentEnd = State(initialValue: endDate)
+        _pickerDate = State(initialValue: startDate)
+
         let components = Calendar.current.dateComponents([.day], from: startDate, to: endDate)
         let days = components.day ?? 1
-        if days == 0 { self._resolution = State(initialValue: .day) }
-        else if days <= 7 { self._resolution = State(initialValue: .week) }
-        else { self._resolution = State(initialValue: .month) }
-        
+        if days == 0 { _resolution = State(initialValue: .day) } else if days <= 7 { _resolution = State(initialValue: .week) } else { _resolution = State(initialValue: .month) }
+
         let descriptor = FetchDescriptor<Transaction>(
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         _transactions = Query(descriptor)
     }
-    
+
     private var filteredTransactions: [Transaction] {
         transactions.filter { txn in
             txn.type == .expense &&
-            txn.date >= currentStart &&
-            txn.date <= currentEnd &&
-            (isDateSummary ? true : (category == nil ? txn.category == nil : txn.category?.id == category?.id))
+                txn.date >= currentStart &&
+                txn.date <= currentEnd &&
+                (isDateSummary ? true : (category == nil ? txn.category == nil : txn.category?.id == category?.id))
         }
     }
-    
+
     @Environment(AppStateViewModel.self) private var appStateViewModel
     @State private var isChartAnimated = false
 
@@ -66,16 +66,16 @@ struct CategoryDetailView: View {
         let calendar = Calendar.current
         let range = calendar.dateComponents([.day], from: currentStart, to: currentEnd).day ?? 1
         let iterations = max(1, range + 1)
-        
-        return (0..<iterations).map { offset -> DailyTotal in
+
+        return (0 ..< iterations).map { offset -> DailyTotal in
             let date = calendar.date(byAdding: .day, value: offset, to: currentStart)!
             let start = calendar.startOfDay(for: date)
             let end = calendar.date(byAdding: .day, value: 1, to: start)!
-            
+
             let total = filteredTransactions
                 .filter { $0.date >= start && $0.date < end }
                 .reduce(Money.zero) { $0 + $1.money }
-            
+
             return DailyTotal(date: date, total: total)
         }
     }
@@ -84,6 +84,7 @@ struct CategoryDetailView: View {
         ScrollView {
             VStack(spacing: 24) {
                 // MARK: - Hero Header
+
                 VStack(spacing: 24) {
                     HStack(spacing: 20) {
                         Circle()
@@ -94,13 +95,13 @@ struct CategoryDetailView: View {
                                     .font(.system(size: 28, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                        
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text(isDateSummary ? (resolution == .month ? "Monthly Summary" : resolution == .week ? "Weekly Summary" : "Daily Summary") : (category?.name ?? "Other"))
                                 .font(.title2)
                                 .fontWeight(.black)
                                 .foregroundStyle(FintechDesign.primaryText)
-                            
+
                             Button {
                                 isPeriodPickerPresented = true
                             } label: {
@@ -120,7 +121,7 @@ struct CategoryDetailView: View {
                         }
                         Spacer()
                     }
-                    
+
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Total Spend")
@@ -134,7 +135,7 @@ struct CategoryDetailView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(16)
                         .background(FintechDesign.adaptiveColor("F5F5F7", "FFFFFF").opacity(0.05), in: RoundedRectangle(cornerRadius: 20))
-                        
+
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Transactions")
                                 .font(.caption2.bold())
@@ -155,13 +156,14 @@ struct CategoryDetailView: View {
                     FintechDesign.CardBackground()
                         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
                 )
-                
+
                 // MARK: - Trend Analysis
+
                 VStack(alignment: .leading, spacing: 20) {
                     Text("Spending Trend")
                         .font(.headline)
                         .foregroundStyle(FintechDesign.primaryText)
-                    
+
                     Chart {
                         ForEach(chartData) { data in
                             BarMark(
@@ -171,7 +173,7 @@ struct CategoryDetailView: View {
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [
-                                        (isDateSummary ? .blue : (category?.color ?? .blue)),
+                                        isDateSummary ? .blue : (category?.color ?? .blue),
                                         (isDateSummary ? .blue : (category?.color ?? .blue)).opacity(0.6)
                                     ],
                                     startPoint: .top,
@@ -183,7 +185,7 @@ struct CategoryDetailView: View {
                     }
                     .chartYAxis(.hidden)
                     .chartXAxis {
-                        AxisMarks { value in
+                        AxisMarks { _ in
                             AxisGridLine()
                                 .foregroundStyle(Color.gray.opacity(0.1))
                             AxisValueLabel()
@@ -192,7 +194,7 @@ struct CategoryDetailView: View {
                         }
                     }
                     .tint(Color.gray)
-                    .chartYScale(domain: 0...(chartData.map { $0.total.amount }.max() ?? 100))
+                    .chartYScale(domain: 0 ... (chartData.map(\.total.amount).max() ?? 100))
                     .frame(height: 180)
                     .animation(.spring(response: 0.6, dampingFraction: 0.8), value: isChartAnimated)
                 }
@@ -215,11 +217,12 @@ struct CategoryDetailView: View {
                 }
 
                 // MARK: - Activity Log
+
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Activity History")
                         .font(.headline)
                         .foregroundStyle(FintechDesign.primaryText)
-                    
+
                     if filteredTransactions.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "tray.fill")
@@ -268,7 +271,7 @@ struct CategoryDetailView: View {
             filterSheet
         }
     }
-    
+
     private var headerDateString: String {
         let calendar = Calendar.current
         switch resolution {
@@ -281,13 +284,13 @@ struct CategoryDetailView: View {
             return currentStart.formatted(.dateTime.month(.wide).year())
         }
     }
-    
+
     private func statCard(title: String, value: String, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(color)
-            
+
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption2)
@@ -311,7 +314,7 @@ struct CategoryDetailView: View {
                 }
         }
     }
-    
+
     private var filterSheet: some View {
         NavigationStack {
             Form {
@@ -326,7 +329,7 @@ struct CategoryDetailView: View {
                         updatePeriod(from: pickerDate)
                     }
                 }
-                
+
                 Section("Jump to Date") {
                     VStack(alignment: .leading, spacing: 8) {
                         if resolution == .week {
@@ -335,7 +338,7 @@ struct CategoryDetailView: View {
                                 .font(.caption).bold()
                                 .foregroundStyle(.blue)
                         }
-                        
+
                         DatePicker("Target Date", selection: $pickerDate, displayedComponents: .date)
                             .datePickerStyle(.graphical)
                             .onChange(of: pickerDate) { _, newDate in
@@ -356,7 +359,7 @@ struct CategoryDetailView: View {
         }
         .presentationDetents([.medium, .large])
     }
-    
+
     private func updatePeriod(from date: Date) {
         isChartAnimated = false // Reset animation
         let calendar = Calendar.current
@@ -375,7 +378,7 @@ struct CategoryDetailView: View {
             currentStart = calendar.date(from: calendar.dateComponents([.year, .month], from: date))!
             currentEnd = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: currentStart)!
         }
-        
+
         withAnimation(.easeInOut(duration: 0.8)) {
             isChartAnimated = true
         }

@@ -1,6 +1,6 @@
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 struct HomeView: View {
     @Environment(HomeViewModel.self) private var homeViewModel
@@ -16,6 +16,7 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     // MARK: - Hero Wallet Card
+
                     Button {
                         appStateViewModel.selectedTab = .insights
                     } label: {
@@ -34,6 +35,7 @@ struct HomeView: View {
                     .opacity(animateItems ? 1 : 0)
 
                     // MARK: - Spending This Week
+
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text("Spending This Week")
@@ -63,6 +65,7 @@ struct HomeView: View {
                     .opacity(animateItems ? 1 : 0)
 
                     // MARK: - Recent Activity
+
                     VStack(alignment: .leading, spacing: 18) {
                         HStack {
                             Text("Recent Transactions")
@@ -144,7 +147,7 @@ struct WeeklyTrendChart: View {
                         .cornerRadius(6)
                     }
                 }
-                .chartYScale(domain: 0...(homeViewModel.weeklyChartData.map { $0.total.amount }.max() ?? 100))
+                .chartYScale(domain: 0 ... (homeViewModel.weeklyChartData.map(\.total.amount).max() ?? 100))
                 .chartYAxis(.hidden)
                 .chartXAxis {
                     AxisMarks { _ in

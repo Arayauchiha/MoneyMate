@@ -34,16 +34,16 @@ final class HomeViewModel {
             let allTxns = try context.fetch(FetchDescriptor<Transaction>(
                 sortBy: [SortDescriptor(\.date, order: .reverse)]
             )).filter { $0.modelContext != nil }
-            
+
             let activeTxns = allTxns.filter { !$0.isArchived }
 
             totalIncome = activeTxns.filter { $0.type == .income }.reduce(.zero) { $0 + $1.money }
             totalExpenses = activeTxns.filter { $0.type == .expense }.reduce(.zero) { $0 + $1.money }
             totalFundedToGoals = activeTxns.filter { $0.type == .transfer && $0.linkedGoal != nil }.reduce(.zero) { $0 + $1.money }
-            
+
             totalBalance = totalIncome - totalExpenses
             expendableAmount = totalBalance - totalFundedToGoals
-            
+
             let incomeAmount = NSDecimalNumber(decimal: totalIncome.amount).doubleValue
             let expenseAmount = NSDecimalNumber(decimal: totalExpenses.amount).doubleValue
             savingsRate = incomeAmount.isZero ? 0.0 : max(0.0, (incomeAmount - expenseAmount) / incomeAmount)
@@ -65,7 +65,7 @@ final class HomeViewModel {
         let (start, _) = TimePeriod.week.dateRange
         let calendar = Calendar.current
 
-        return (0..<7).map { offset -> DailyTotal in
+        return (0 ..< 7).map { offset -> DailyTotal in
             let day = calendar.date(byAdding: .day, value: offset, to: start)!
             let dayStart = calendar.startOfDay(for: day)
             let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)!

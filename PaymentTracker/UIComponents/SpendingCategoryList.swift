@@ -1,6 +1,6 @@
-import SwiftUI
-import SwiftData
 import Foundation
+import SwiftData
+import SwiftUI
 
 struct SpendingCategoryItem: Identifiable {
     let id = UUID()
@@ -12,10 +12,10 @@ struct SpendingCategoryItem: Identifiable {
 struct SpendingCategoryList: View {
     let categories: [SpendingCategoryItem]
     let appStateViewModel: AppStateViewModel
-    
+
     // Optional dates to control drill-down range. Defaults to current week if nil.
-    var startDate: Date? = nil
-    var endDate: Date? = nil
+    var startDate: Date?
+    var endDate: Date?
 
     private var effectiveStart: Date {
         if let startDate { return startDate }

@@ -1,6 +1,6 @@
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 struct SavingsBreakdownView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
@@ -36,7 +36,6 @@ struct SavingsBreakdownView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-
                 // Hero total
                 VStack(spacing: 6) {
                     Text("Accumulated Net Savings")

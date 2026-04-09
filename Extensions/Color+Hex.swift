@@ -17,7 +17,7 @@ extension Color {
 }
 
 extension UIColor {
-    nonisolated convenience init(hex: String) {
+    convenience nonisolated init(hex: String) {
         var cleaned = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         if cleaned.count == 3 {
             cleaned = cleaned.map { "\($0)\($0)" }.joined()

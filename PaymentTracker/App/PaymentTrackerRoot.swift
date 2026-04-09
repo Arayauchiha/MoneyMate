@@ -10,7 +10,7 @@ struct MoneyMateRoot: View {
     @State private var goalsViewModel = GoalsViewModel()
     @State private var insightsViewModel = InsightsViewModel()
     @State private var appStateViewModel = AppStateViewModel()
-    
+
     var body: some View {
         ZStack {
             AppTabView()
@@ -34,15 +34,15 @@ struct MoneyMateRoot: View {
             transactionViewModel.configure(context: modelContext)
             goalsViewModel.configure(context: modelContext, appState: appStateViewModel)
             insightsViewModel.configure(context: modelContext)
-            
+
             transactionViewModel.cleanupOldArchives()
-            
+
             // Notification Permissions & Scheduling
             NotificationManager.shared.requestPermission()
             if appStateViewModel.isDailyReminderEnabled {
                 NotificationManager.shared.scheduleDailyReminder(at: appStateViewModel.dailyReminderTime)
             }
-            
+
             // Initial auth if enabled
             if appStateViewModel.isBiometricsEnabled {
                 appStateViewModel.authenticate()
@@ -52,7 +52,7 @@ struct MoneyMateRoot: View {
             if newPhase == .background {
                 appStateViewModel.lockApp()
             } else if newPhase == .active {
-                if appStateViewModel.isAppLocked && appStateViewModel.isBiometricsEnabled && !appStateViewModel.isAuthenticating {
+                if appStateViewModel.isAppLocked, appStateViewModel.isBiometricsEnabled, !appStateViewModel.isAuthenticating {
                     appStateViewModel.authenticate()
                 }
             }
@@ -63,15 +63,15 @@ struct MoneyMateRoot: View {
         ZStack {
             Color(uiColor: .systemBackground)
                 .ignoresSafeArea()
-            
+
             VStack(spacing: 24) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.blue)
-                
+
                 Text("MoneyMate Locked")
                     .font(.title2).bold()
-                
+
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     appStateViewModel.authenticate()

@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct AppTabView: View {
     @Environment(AppStateViewModel.self) private var appStateViewModel
@@ -56,21 +56,21 @@ struct AppTabView: View {
                 ZStack {
                     Color(uiColor: .systemBackground)
                         .ignoresSafeArea()
-                    
+
                     VStack(spacing: 24) {
                         Image(systemName: "lock.shield.fill")
                             .font(.system(size: 60))
                             .foregroundStyle(.blue.gradient)
-                        
+
                         VStack(spacing: 8) {
                             Text("Face ID Required")
                                 .font(.title3.bold())
-                            
+
                             Text("Unlock to access your secure financial data.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
-                        
+
                         Button {
                             appState.authenticate()
                         } label: {
@@ -118,7 +118,7 @@ struct AppTabView: View {
                 .environment(appStateViewModel)
                 .modelContext(modelContext)
         }
-        .onChange(of: scenePhase) { old, new in
+        .onChange(of: scenePhase) { _, new in
             if new == .background || new == .inactive {
                 appState.lockApp()
             } else if new == .active {

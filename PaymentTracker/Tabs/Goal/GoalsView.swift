@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct GoalsView: View {
     @Environment(GoalsViewModel.self) private var goalsViewModel
@@ -16,9 +16,9 @@ struct GoalsView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     availableToSaveBanner
-                    
-                    if goalsViewModel.activeGoals.isEmpty && 
-                       goalsViewModel.achievedGoals.isEmpty && 
+
+                    if goalsViewModel.activeGoals.isEmpty,
+                       goalsViewModel.achievedGoals.isEmpty,
                        goalsViewModel.completedGoals.isEmpty {
                         emptyStateView
                     } else {
@@ -27,11 +27,11 @@ struct GoalsView: View {
                                 goalToFund = goal
                             }
                         }
-                        
+
                         if !goalsViewModel.achievedGoals.isEmpty {
                             GoalSection(title: "Completed Goals", goals: goalsViewModel.achievedGoals, viewModel: goalsViewModel, appState: appStateViewModel, goalToDelete: $goalToDelete, onFund: nil)
                         }
-                        
+
                         if !goalsViewModel.completedGoals.isEmpty {
                             GoalSection(title: "Archive", goals: goalsViewModel.completedGoals, viewModel: goalsViewModel, appState: appStateViewModel, goalToDelete: $goalToDelete, opacity: 0.6, onFund: nil)
                         }
@@ -94,7 +94,7 @@ struct GoalsView: View {
                         goalsViewModel.delete(goal)
                     }
                 }
-                Button("Cancel", role: .cancel) { }
+                Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will permanently remove the goal and all its tracking data. This cannot be undone.")
             }
@@ -122,25 +122,25 @@ struct GoalsView: View {
                                             endPoint: .bottomTrailing
                                         )
                                     )
-                                
+
                                 Circle()
                                     .fill(.white.opacity(0.15))
                                     .frame(width: 200, height: 200)
                                     .blur(radius: 50)
                                     .offset(x: 100, y: -50)
-                                
+
                                 VStack(spacing: 12) {
                                     Text("Available to Save")
                                         .font(.system(size: 10, weight: .black))
                                         .foregroundStyle(.white.opacity(0.7))
                                         .textCase(.uppercase)
                                         .tracking(1)
-                                    
+
                                     let money = goalsViewModel.availableToSave
                                     Text(money.formatted(with: appStateViewModel.userCurrency))
                                         .font(.system(size: 40, weight: .black, design: .rounded))
                                         .foregroundStyle(.white)
-                                    
+
                                     if goalsViewModel.isOverspent {
                                         Text("Capped at zero due to overspending")
                                             .font(.system(size: 11, weight: .bold))
@@ -161,7 +161,7 @@ struct GoalsView: View {
                         }
                         .buttonStyle(.plain)
                         .id(0)
-                        
+
                         // Card 2: Funded to Goals
                         NavigationLink {
                             let (start, end) = TimePeriod.month.dateRange
@@ -176,19 +176,19 @@ struct GoalsView: View {
                                             endPoint: .bottomTrailing
                                         )
                                     )
-                                
+
                                 VStack(spacing: 12) {
                                     Text("Total Goal Funding")
                                         .font(.system(size: 10, weight: .black))
                                         .foregroundStyle(.white.opacity(0.7))
                                         .textCase(.uppercase)
                                         .tracking(1)
-                                    
+
                                     let funded = goalsViewModel.totalGoalFunding
                                     Text(funded.formatted(with: appStateViewModel.userCurrency))
                                         .font(.system(size: 40, weight: .black, design: .rounded))
                                         .foregroundStyle(.white)
-                                    
+
                                     HStack(spacing: 4) {
                                         Text("View Allocation Detail")
                                         Image(systemName: "arrow.right")
@@ -214,10 +214,10 @@ struct GoalsView: View {
                 .contentMargins(.horizontal, 0, for: .scrollContent)
             }
             .frame(height: 180)
-            
+
             // Page Indicator
             HStack(spacing: 6) {
-                ForEach(0..<2) { index in
+                ForEach(0 ..< 2) { index in
                     Circle()
                         .fill(bannerPageIndex == index ? AnyShapeStyle(Color.primary) : AnyShapeStyle(Color.secondary.opacity(0.3)))
                         .frame(width: bannerPageIndex == index ? 8 : 6, height: bannerPageIndex == index ? 8 : 6)
@@ -227,7 +227,7 @@ struct GoalsView: View {
             .padding(.top, 4)
         }
     }
-    
+
     private var emptyStateView: some View {
         VStack(spacing: 20) {
             ZStack {
@@ -238,11 +238,11 @@ struct GoalsView: View {
                     .font(.system(size: 40, weight: .bold))
                     .foregroundStyle(FintechDesign.brandGradient)
             }
-            
+
             Text("No Goals Yet")
                 .font(.title3.bold())
                 .foregroundStyle(FintechDesign.primaryText)
-            
+
             Button {
                 goalsViewModel.presentAdd()
             } label: {
@@ -266,8 +266,8 @@ struct GoalSection: View {
     let appState: AppStateViewModel
     @Binding var goalToDelete: Goal?
     var opacity: Double = 1.0
-    var onFund: ((Goal) -> Void)? = nil
-    
+    var onFund: ((Goal) -> Void)?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -285,7 +285,7 @@ struct GoalSection: View {
                     .background(Color.secondary.opacity(0.1), in: Capsule())
             }
             .padding(.horizontal, 8)
-            
+
             ForEach(goals) { goal in
                 NavigationLink(value: goal) {
                     GoalCardRow(goal: goal, viewModel: viewModel, appState: appState) {
@@ -316,12 +316,12 @@ struct GoalCardRow: View {
     let goal: Goal
     let viewModel: GoalsViewModel
     let appState: AppStateViewModel
-    var onFund: (() -> Void)? = nil
-    
+    var onFund: (() -> Void)?
+
     var body: some View {
         let goalStatus = viewModel.status(for: goal)
         let goalColor = goalStatus.color
-        
+
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .top) {
                 ZStack {
@@ -332,7 +332,7 @@ struct GoalCardRow: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(goalColor)
                 }
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(goal.title)
                         .font(.headline)
@@ -341,9 +341,9 @@ struct GoalCardRow: View {
                         .font(.caption)
                         .foregroundStyle(Color.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Text(goalStatus.label)
                     .font(.system(size: 10, weight: .black))
                     .textCase(.uppercase)
@@ -352,23 +352,23 @@ struct GoalCardRow: View {
                     .background(goalColor.opacity(0.1), in: Capsule())
                     .foregroundStyle(goalColor)
             }
-            
+
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .lastTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(viewModel.progressLabel(for: goal, symbol: appState.userCurrency))
                             .font(.system(.subheadline, design: .rounded).bold())
                             .foregroundStyle(FintechDesign.primaryText)
-                        
+
                         Text("Goal Target Progress")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.secondary.opacity(0.7))
                             .textCase(.uppercase)
                     }
-                    
+
                     Spacer()
-                    
-                    if let onFund = onFund, goal.type == .savings, goalStatus != .achieved {
+
+                    if let onFund, goal.type == .savings, goalStatus != .achieved {
                         Button {
                             onFund()
                         } label: {
@@ -385,13 +385,13 @@ struct GoalCardRow: View {
                         .buttonStyle(.plain)
                     }
                 }
-                
+
                 // Custom Gradient Progress Bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule()
                             .fill(Color.secondary.opacity(0.1))
-                        
+
                         Capsule()
                             .fill(
                                 LinearGradient(
@@ -405,7 +405,7 @@ struct GoalCardRow: View {
                 }
                 .frame(height: 8)
             }
-            
+
             HStack {
                 HStack(spacing: 4) {
                     Image(systemName: "calendar")
@@ -413,9 +413,9 @@ struct GoalCardRow: View {
                 }
                 .font(.caption2.bold())
                 .foregroundStyle(goal.daysRemaining < 7 ? Color.red : Color.secondary)
-                
+
                 Spacer()
-                
+
                 let percent = Int(viewModel.progressFraction(for: goal) * 100)
                 Text("\(percent)% achieved")
                     .font(.system(size: 10, weight: .black))

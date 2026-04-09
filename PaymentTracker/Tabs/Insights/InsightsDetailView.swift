@@ -1,6 +1,6 @@
-import SwiftUI
 import Charts
 import SwiftData
+import SwiftUI
 
 enum InsightDetailType {
     case totalSpend
@@ -9,25 +9,25 @@ enum InsightDetailType {
 
     var title: String {
         switch self {
-        case .totalSpend: return "Spending Analysis"
-        case .dailyAverage: return "Average & Pacing"
-        case .fundedToGoals: return "Goal Allocation"
+        case .totalSpend: "Spending Analysis"
+        case .dailyAverage: "Average & Pacing"
+        case .fundedToGoals: "Goal Allocation"
         }
     }
 
     var icon: String {
         switch self {
-        case .totalSpend: return "arrow.down.circle.fill"
-        case .dailyAverage: return "chart.line.uptrend.xyaxis.circle.fill"
-        case .fundedToGoals: return "target"
+        case .totalSpend: "arrow.down.circle.fill"
+        case .dailyAverage: "chart.line.uptrend.xyaxis.circle.fill"
+        case .fundedToGoals: "target"
         }
     }
 
     var accentColor: Color {
         switch self {
-        case .totalSpend: return .red
-        case .dailyAverage: return .blue
-        case .fundedToGoals: return .green
+        case .totalSpend: .red
+        case .dailyAverage: .blue
+        case .fundedToGoals: .green
         }
     }
 }
@@ -53,27 +53,25 @@ struct InsightsDetailView: View {
         _endDate = State(initialValue: endDate)
         // Infer the initial period from the date range length
         let days = Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 0
-        if days <= 7 { _selectedPeriod = State(initialValue: .week) }
-        else if days <= 31 { _selectedPeriod = State(initialValue: .month) }
-        else { _selectedPeriod = State(initialValue: .year) }
+        if days <= 7 { _selectedPeriod = State(initialValue: .week) } else if days <= 31 { _selectedPeriod = State(initialValue: .month) } else { _selectedPeriod = State(initialValue: .year) }
     }
 
     private var filteredExpenses: [Transaction] {
         allTransactions.filter {
             !$0.isArchived &&
-            $0.type == .expense &&
-            $0.date >= startDate &&
-            $0.date <= endDate
+                $0.type == .expense &&
+                $0.date >= startDate &&
+                $0.date <= endDate
         }
     }
 
     private var filteredTransfers: [Transaction] {
         allTransactions.filter {
             !$0.isArchived &&
-            $0.type == .transfer &&
-            $0.linkedGoal != nil &&
-            $0.date >= startDate &&
-            $0.date <= endDate
+                $0.type == .transfer &&
+                $0.linkedGoal != nil &&
+                $0.date >= startDate &&
+                $0.date <= endDate
         }
     }
 
@@ -114,7 +112,7 @@ struct InsightsDetailView: View {
 
                 // Type-specific content
                 switch type {
-                case .totalSpend:   spendingDeepDive
+                case .totalSpend: spendingDeepDive
                 case .dailyAverage: pacingDeepDive
                 case .fundedToGoals: goalsDeepDive
                 }
@@ -162,8 +160,8 @@ struct InsightsDetailView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(type == .totalSpend ? "Total Period Spent"
-                         : type == .dailyAverage ? "Daily Average"
-                         : "Total Goal Funding")
+                        : type == .dailyAverage ? "Daily Average"
+                        : "Total Goal Funding")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
@@ -231,7 +229,6 @@ struct InsightsDetailView: View {
                     .cornerRadius(4)
                 }
                 .frame(height: 200)
-
             }
             .padding(24)
             .background(
@@ -331,7 +328,6 @@ struct InsightsDetailView: View {
                         }
                 }
                 .frame(height: 200)
-
             }
             .padding(24)
             .background(
@@ -418,7 +414,6 @@ struct InsightsDetailView: View {
         )
     }
 
-    @ViewBuilder
     private func txnDrillSheet(title: String, txns: [Transaction], color: Color) -> some View {
         NavigationStack {
             ScrollView {
@@ -600,7 +595,6 @@ struct InsightsDetailView: View {
         return Money(avg).formatted(with: appStateViewModel.userCurrency)
     }
 
-    @ViewBuilder
     private func emptyState(icon: String, message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: icon)

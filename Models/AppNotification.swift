@@ -2,29 +2,29 @@ import Foundation
 import SwiftData
 
 enum AppNotificationType: String, Codable {
-    case budget   = "budget"
-    case goal     = "goal"
-    case weekly   = "weekly"
-    case reminder = "reminder"
-    case system   = "system"
+    case budget
+    case goal
+    case weekly
+    case reminder
+    case system
 
     var icon: String {
         switch self {
-        case .budget:   return "exclamationmark.triangle.fill"
-        case .goal:     return "target"
-        case .weekly:   return "chart.bar.fill"
-        case .reminder: return "bell.fill"
-        case .system:   return "info.circle.fill"
+        case .budget: "exclamationmark.triangle.fill"
+        case .goal: "target"
+        case .weekly: "chart.bar.fill"
+        case .reminder: "bell.fill"
+        case .system: "info.circle.fill"
         }
     }
 
     var color: String {
         switch self {
-        case .budget:   return "FF6B6B"
-        case .goal:     return "10B981"
-        case .weekly:   return "6366F1"
-        case .reminder: return "F59E0B"
-        case .system:   return "64748B"
+        case .budget: "FF6B6B"
+        case .goal: "10B981"
+        case .weekly: "6366F1"
+        case .reminder: "F59E0B"
+        case .system: "64748B"
         }
     }
 }
@@ -43,11 +43,11 @@ class AppNotification {
     }
 
     init(title: String, body: String, type: AppNotificationType, date: Date = .now) {
-        self.id = UUID()
+        id = UUID()
         self.title = title
         self.body = body
-        self.typeRaw = type.rawValue
+        typeRaw = type.rawValue
         self.date = date
-        self.isRead = false
+        isRead = false
     }
 }

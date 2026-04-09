@@ -31,7 +31,7 @@ struct Money: Equatable, Comparable, Hashable, Sendable {
         Money(abs(amount))
     }
 
-    // Default formatting using local storage for thread-safety and reactivity
+    /// Default formatting using local storage for thread-safety and reactivity
     nonisolated var formatted: String {
         let symbol = UserDefaults.standard.string(forKey: "user_currency") ?? "₹"
         let formatter = NumberFormatter()
@@ -41,8 +41,8 @@ struct Money: Equatable, Comparable, Hashable, Sendable {
         formatter.maximumFractionDigits = 2
         return formatter.string(from: amount as NSDecimalNumber) ?? "0"
     }
-    
-    // Explicitly formatted with a specific symbol for reactive UI
+
+    /// Explicitly formatted with a specific symbol for reactive UI
     nonisolated func formatted(with symbol: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -70,11 +70,11 @@ struct Money: Equatable, Comparable, Hashable, Sendable {
         let sign = amount < 0 ? "-" : ""
         let absAmount = abs(amount)
         let symbol = UserDefaults.standard.string(forKey: "user_currency") ?? "₹"
-        
+
         if absAmount >= 1_000_000 {
-            return "\(sign)\(symbol)\((absAmount / 1_000_000).formatted(.number.precision(.fractionLength(0...1))))M"
-        } else if absAmount >= 1_000 {
-            return "\(sign)\(symbol)\((absAmount / 1_000).formatted(.number.precision(.fractionLength(0...1))))k"
+            return "\(sign)\(symbol)\((absAmount / 1_000_000).formatted(.number.precision(.fractionLength(0 ... 1))))M"
+        } else if absAmount >= 1000 {
+            return "\(sign)\(symbol)\((absAmount / 1000).formatted(.number.precision(.fractionLength(0 ... 1))))k"
         } else {
             return formatted
         }
